@@ -55,8 +55,8 @@ class EventManager(models.Manager.from_queryset(EventQuerySet)):
 class BaseEvent(models.Model):
     objects = EventManager()
     
-    def all_occurrences(self, start=None):
-        return self.occurrence_set.all_occurrences(start, False)
+    def all_occurrences(self, start=None, limit=None):
+        return self.occurrence_set.all_occurrences(start, False, limit=limit)
     
     def next_occurrence(self, start=None):
         if not start:
@@ -74,10 +74,13 @@ class OccurrenceQuerySet(models.QuerySet):
     def future(self):
         return self.all_occurrences(datetime.now())
     
-    def all_occurrences(self, start=None, end=None, include_event=True):
+    def all_occurrences(self, start=None, end=None, include_event=True, 
+                        limit=None):
         """Return a generator yielding a (start, end) tuple for all occurrence
-           dates in the queryset, taking repetition into account. """
+           dates in the queryset, taking repetition into account, up to a
+           maximum limit if specified. """
          
+        count = 0
         grouped = []
         for occ in self:
             gen = occ.all_occurrences(start)
@@ -88,7 +91,7 @@ class OccurrenceQuerySet(models.QuerySet):
             else:
                 grouped.append([occ, gen, next_date])
         
-        while True:
+        while limit is None or count < limit:
             # work out which generator will yield the earliest date (based on
             # start; end is ignored)
             next_group = None
@@ -101,6 +104,7 @@ class OccurrenceQuerySet(models.QuerySet):
             
             # yield the next (start, end) pair, with event if needed
             yield next_group[2] + ((occ.event, ) if include_event else ())
+            count += 1
             
             # update the group, so we don't keep yielding the same date
             try:
