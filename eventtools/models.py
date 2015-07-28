@@ -9,10 +9,16 @@ from django.core.exceptions import ValidationError
 from django.utils.functional import cached_property
 
 
+def first_item(gen):
+    try:
+        return gen.next()
+    except StopIteration:
+        return None
+
+
 class EventQuerySet(models.QuerySet):
     def filter(self, *args, **kwargs):
-        from_date = kwargs.pop('from_date', None)
-        to_date = kwargs.pop('to_date', None)
+        date_range = kwargs.pop('date_range', None)
         qs = super(EventQuerySet, self).filter(*args, **kwargs)
         
         # TODO this is probably very inefficient. Investigate writing a postgres
@@ -21,20 +27,35 @@ class EventQuerySet(models.QuerySet):
         # worst case, store next_occurrence on the events table and update on
         # cron
         
-        if from_date:
-            if type(from_date) is date:
-                from_date = datetime(*tuple(from_date.timetuple())[:3])
-            qs = qs.filter(
-                Q(occurrence__end__gte=from_date) | \
-                (Q(occurrence__repeat__isnull=False) & \
-                 (Q(occurrence__repeat_until__gte=from_date) | \
-                  Q(occurrence__repeat_until__isnull=True)))).distinct()
-        
-        if to_date:
-            if type(to_date) is date:
-                args = tuple(to_date.timetuple())[:3] + (23, 59, 59)
-                to_date = datetime(*args)
-            qs = qs.filter(Q(occurrence__start__lte=to_date)).distinct()
+        if date_range:
+            from_date, to_date = date_range
+            approx_qs = qs
+            
+            # first winnow down as much as possible via queryset filtering
+            if from_date:
+                if type(from_date) is date:
+                    from_date = datetime(*tuple(from_date.timetuple())[:3])
+                approx_qs = approx_qs.filter(
+                    Q(occurrence__end__gte=from_date) | \
+                    (Q(occurrence__repeat__isnull=False) & \
+                     (Q(occurrence__repeat_until__gte=from_date) | \
+                      Q(occurrence__repeat_until__isnull=True)))).distinct()
+            
+            if to_date:
+                if type(to_date) is date:
+                    args = tuple(to_date.timetuple())[:3] + (23, 59, 59)
+                    to_date = datetime(*args)
+                approx_qs = approx_qs.filter(
+                    Q(occurrence__start__lte=to_date)).distinct()
+            
+            # then work out actual results based on occurrences
+            pks = []
+            for event in approx_qs:
+                occs = event.all_occurrences(start=from_date, end=to_date)
+                if first_item(occs):
+                    pks.append(event.pk)
+            
+            qs = qs.filter(pk__in=pks)
         
         return qs
     
@@ -55,8 +76,8 @@ class EventManager(models.Manager.from_queryset(EventQuerySet)):
 class BaseEvent(models.Model):
     objects = EventManager()
     
-    def all_occurrences(self, start=None):
-        return self.occurrence_set.all_occurrences(start, False)
+    def all_occurrences(self, start=None, end=None):
+        return self.occurrence_set.all_occurrences(start, end, False)
     
     def next_occurrence(self, start=None):
         if not start:
@@ -80,7 +101,7 @@ class OccurrenceQuerySet(models.QuerySet):
          
         grouped = []
         for occ in self:
-            gen = occ.all_occurrences(start)
+            gen = occ.all_occurrences(start, end)
             try:
                 next_date = gen.next()
             except StopIteration:
@@ -145,14 +166,15 @@ class BaseOccurrence(models.Model):
 
     objects = OccurrenceManager()
     
-    def all_occurrences(self, start=None):
+    def all_occurrences(self, start=None, end=None):
         """Return a generator yielding a (start, end) tuple for all dates
            for this occurrence, taking repetition into account. 
            TODO handle start efficiently
            """
         
         if self.repeat is None: # might be 0
-            if not start or self.start >= start:
+            if (not start or self.start >= start) and \
+               (not end or self.start <= end):
                 yield (self.start, self.end)
         else:
             delta = self.end - self.start
@@ -162,7 +184,8 @@ class BaseOccurrence(models.Model):
                                    until=until, count=self.REPEAT_MAX)
             
             for occ_start in repeater:
-                if not start or occ_start >= start:
+                if (not start or occ_start >= start) and \
+                   (not end or self.start <= end):
                     yield (occ_start, occ_start + delta)
 
     class Meta:
