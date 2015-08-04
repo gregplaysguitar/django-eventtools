@@ -82,8 +82,7 @@ class BaseEvent(models.Model):
     objects = EventManager()
     
     def all_occurrences(self, start=None, end=None, limit=None):
-        return self.occurrence_set.all_occurrences(start, end, False, 
-                                                   limit=limit)
+        return self.occurrence_set.all_occurrences(start, end, limit=limit)
     
     def next_occurrence(self, start=None):
         if not start:
@@ -123,8 +122,7 @@ class OccurrenceQuerySet(SortableQuerySet):
         # and then filter the queryset
         return self.filter(pk__in=pks)
     
-    def all_occurrences(self, start=None, end=None, include_event=True, 
-                        limit=None):
+    def all_occurrences(self, start=None, end=None, limit=None):
         """Return a generator yielding a (start, end) tuple for all occurrence
            dates in the queryset, taking repetition into account, up to a
            maximum limit if specified. """
@@ -138,7 +136,8 @@ class OccurrenceQuerySet(SortableQuerySet):
             except StopIteration:
                 pass
             else:
-                grouped.append([occ, gen, next_date])
+                occ_data = getattr(occ, 'occurrence_data', None)
+                grouped.append([occ_data, gen, next_date])
         
         while limit is None or count < limit:
             # work out which generator will yield the earliest date (based on
@@ -151,8 +150,8 @@ class OccurrenceQuerySet(SortableQuerySet):
             if not next_group:
                 return
             
-            # yield the next (start, end) pair, with event if needed
-            yield next_group[2] + ((occ.event, ) if include_event else ())
+            # yield the next (start, end) pair, with occurrence data
+            yield next_group[2] + (next_group[0], )
             count += 1
             
             # update the group, so we don't keep yielding the same date
