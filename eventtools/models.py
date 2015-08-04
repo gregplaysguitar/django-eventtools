@@ -184,7 +184,7 @@ class BaseOccurrence(models.Model):
     repeat_until = models.DateField(null=True, blank=True)
     
     def clean(self):
-        if self.start >= self.end:
+        if self.start and self.end and self.start >= self.end:
             msg = u"End must be after start"
             raise ValidationError(msg)
         
@@ -198,11 +198,19 @@ class BaseOccurrence(models.Model):
 
     objects = OccurrenceManager()
     
+    def next_occurrence(self, start=None):
+        if not start:
+            start = datetime.now()
+        return first_item(self.all_occurrences(start=start))
+    
     def all_occurrences(self, start=None, end=None):
         """Return a generator yielding a (start, end) tuple for all dates
            for this occurrence, taking repetition into account. 
            TODO handle start efficiently
            """
+        
+        start = start and as_datetime(start)
+        end = end and as_datetime(end, True)
         
         if self.repeat is None: # might be 0
             if (not start or self.start >= start) and \
