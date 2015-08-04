@@ -16,57 +16,62 @@ def first_item(gen):
         return None
 
 
-class EventQuerySet(models.QuerySet):
-    def filter(self, *args, **kwargs):
-        date_range = kwargs.pop('date_range', None)
-        qs = super(EventQuerySet, self).filter(*args, **kwargs)
-        
+def as_datetime(d, end=False):
+    if type(d) is date:
+        date_args = tuple(d.timetuple())[:3]
+        if end:
+            time_args = (23, 59, 59)
+        else:
+            time_args = (0, 0, 0)
+        return datetime(*(date_args + time_args))
+
+
+class SortableQuerySet(models.QuerySet):
+    """TODO"""
+    
+    def sort_by_next(self, start=None):
+        """Sort the queryset by next_occurrence. Note that this method 
+           necessarily returns a list, not a queryset. """  
+         
+        def sort_key(obj):
+            occ = obj.next_occurrence(start)
+            return occ[0] if occ else None
+        return sorted([e for e in self if sort_key(e)], key=sort_key)
+
+
+class EventQuerySet(SortableQuerySet):
+    def for_period(self, from_date=None, to_date=None):
         # TODO this is probably very inefficient. Investigate writing a postgres
         # function to handle recurring dates, or caching, or only working in 
         # occurrences rather than querying the events table?
         # worst case, store next_occurrence on the events table and update on
         # cron
         
-        if date_range:
-            from_date, to_date = date_range
-            approx_qs = qs
-            
-            # first winnow down as much as possible via queryset filtering
-            if from_date:
-                if type(from_date) is date:
-                    from_date = datetime(*tuple(from_date.timetuple())[:3])
-                approx_qs = approx_qs.filter(
-                    Q(occurrence__end__gte=from_date) | \
-                    (Q(occurrence__repeat__isnull=False) & \
-                     (Q(occurrence__repeat_until__gte=from_date) | \
-                      Q(occurrence__repeat_until__isnull=True)))).distinct()
-            
-            if to_date:
-                if type(to_date) is date:
-                    args = tuple(to_date.timetuple())[:3] + (23, 59, 59)
-                    to_date = datetime(*args)
-                approx_qs = approx_qs.filter(
-                    Q(occurrence__start__lte=to_date)).distinct()
-            
-            # then work out actual results based on occurrences
-            pks = []
-            for event in approx_qs:
-                occs = event.all_occurrences(start=from_date, end=to_date)
-                if first_item(occs):
-                    pks.append(event.pk)
-            
-            qs = qs.filter(pk__in=pks)
+        approx_qs = self
         
-        return qs
-    
-    def sort_by_next(self, start=None):
-        """Sort the queryset by next_occurrence. Note that this method 
-           necessarily returns a list, not a queryset. """  
-         
-        def sort_key(event):
-            occ = event.next_occurrence(start)
-            return occ[0] if occ else None
-        return sorted([e for e in self if sort_key(e)], key=sort_key)
+        # first winnow down as much as possible via queryset filtering
+        if from_date:
+            from_date = as_datetime(from_date)
+            approx_qs = approx_qs.filter(
+                Q(occurrence__end__gte=from_date) | \
+                (Q(occurrence__repeat__isnull=False) & \
+                 (Q(occurrence__repeat_until__gte=from_date) | \
+                  Q(occurrence__repeat_until__isnull=True)))).distinct()
+        
+        if to_date:
+            to_date = as_datetime(to_date, True)
+            approx_qs = approx_qs.filter(
+                Q(occurrence__start__lte=to_date)).distinct()
+        
+        # then work out actual results based on occurrences
+        pks = []
+        for event in approx_qs:
+            occs = event.all_occurrences(start=from_date, end=to_date)
+            if first_item(occs):
+                pks.append(event.pk)
+        
+        # and then filter the queryset
+        return self.filter(pk__in=pks)
 
 
 class EventManager(models.Manager.from_queryset(EventQuerySet)):
@@ -83,18 +88,40 @@ class BaseEvent(models.Model):
     def next_occurrence(self, start=None):
         if not start:
             start = datetime.now()
-        try:
-            return self.all_occurrences(start=start).next()
-        except StopIteration:
-            return None
+        return first_item(self.all_occurrences(start=start))
     
     class Meta:
         abstract = True
     
 
-class OccurrenceQuerySet(models.QuerySet):
-    def future(self):
-        return self.all_occurrences(datetime.now())
+class OccurrenceQuerySet(SortableQuerySet):
+    def for_period(self, from_date=None, to_date=None):
+        # TODO optimise as with EventQuerySet
+        
+        approx_qs = self
+        
+        # first winnow down as much as possible via queryset filtering
+        if from_date:
+            from_date = as_datetime(from_date)
+            approx_qs = approx_qs.filter(
+                Q(end__gte=from_date) | \
+                (Q(repeat__isnull=False) & \
+                 (Q(repeat_until__gte=from_date) | \
+                  Q(repeat_until__isnull=True)))).distinct()
+        
+        if to_date:
+            to_date = as_datetime(to_date, True)
+            approx_qs = approx_qs.filter(Q(start__lte=to_date)).distinct()
+        
+        # then work out actual results based on occurrences
+        pks = []
+        for occurrence in approx_qs:
+            occs = occurrence.all_occurrences(start=from_date, end=to_date)
+            if first_item(occs):
+                pks.append(occurrence.pk)
+        
+        # and then filter the queryset
+        return self.filter(pk__in=pks)
     
     def all_occurrences(self, start=None, end=None, include_event=True, 
                         limit=None):
