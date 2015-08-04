@@ -136,7 +136,7 @@ class OccurrenceQuerySet(SortableQuerySet):
             except StopIteration:
                 pass
             else:
-                occ_data = getattr(occ, 'occurrence_data', None)
+                occ_data = occ.occurrence_data
                 grouped.append([occ_data, gen, next_date])
         
         while limit is None or count < limit:
@@ -166,6 +166,9 @@ class OccurrenceManager(models.Manager.from_queryset(OccurrenceQuerySet)):
 
 
 class BaseOccurrence(models.Model):
+    # override this in subclasses
+    occurrence_data = None
+    
     REPEAT_MAX = 200
     
     REPEAT_CHOICES = (
@@ -214,7 +217,7 @@ class BaseOccurrence(models.Model):
         if self.repeat is None: # might be 0
             if (not start or self.start >= start) and \
                (not end or self.start <= end):
-                yield (self.start, self.end)
+                yield (self.start, self.end, self.occurrence_data)
         else:
             delta = self.end - self.start
             until = self.repeat_until + timedelta(1) \
@@ -225,7 +228,7 @@ class BaseOccurrence(models.Model):
             for occ_start in repeater:
                 if (not start or occ_start >= start) and \
                    (not end or self.start <= end):
-                    yield (occ_start, occ_start + delta)
+                    yield (occ_start, occ_start + delta, self.occurrence_data)
 
     class Meta:
         ordering = ('start', 'end')
