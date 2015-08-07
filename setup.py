@@ -4,7 +4,7 @@
 from setuptools import setup, find_packages
 from setuptools.command.test import test
 
-# avoid importing the module 
+# avoid importing the module
 exec(open('eventtools/_version.py').read())
 
 setup(
@@ -18,7 +18,7 @@ setup(
     packages=find_packages(),
     zip_safe=False,
     platforms='any',
-    install_requires=['Django>=1.8',],
+    install_requires=['Django>=1.8'],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Environment :: Web Environment',

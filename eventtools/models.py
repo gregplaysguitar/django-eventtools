@@ -28,11 +28,11 @@ def as_datetime(d, end=False):
 
 class SortableQuerySet(models.QuerySet):
     """TODO"""
-    
+
     def sort_by_next(self, start=None):
-        """Sort the queryset by next_occurrence. Note that this method 
-           necessarily returns a list, not a queryset. """  
-         
+        """Sort the queryset by next_occurrence. Note that this method
+           necessarily returns a list, not a queryset. """
+
         def sort_key(obj):
             occ = obj.next_occurrence(start)
             return occ[0] if occ else None
@@ -41,35 +41,35 @@ class SortableQuerySet(models.QuerySet):
 
 class EventQuerySet(SortableQuerySet):
     def for_period(self, from_date=None, to_date=None):
-        # TODO this is probably very inefficient. Investigate writing a postgres
-        # function to handle recurring dates, or caching, or only working in 
-        # occurrences rather than querying the events table?
+        # TODO this is probably very inefficient. Investigate writing a
+        # postgres function to handle recurring dates, or caching, or only
+        # working in occurrences rather than querying the events table?
         # worst case, store next_occurrence on the events table and update on
         # cron
-        
+
         approx_qs = self
-        
+
         # first winnow down as much as possible via queryset filtering
         if from_date:
             from_date = as_datetime(from_date)
             approx_qs = approx_qs.filter(
-                Q(occurrence__end__gte=from_date) | \
-                (Q(occurrence__repeat__isnull=False) & \
-                 (Q(occurrence__repeat_until__gte=from_date) | \
+                Q(occurrence__end__gte=from_date) |
+                (Q(occurrence__repeat__isnull=False) &
+                 (Q(occurrence__repeat_until__gte=from_date) |
                   Q(occurrence__repeat_until__isnull=True)))).distinct()
-        
+
         if to_date:
             to_date = as_datetime(to_date, True)
             approx_qs = approx_qs.filter(
                 Q(occurrence__start__lte=to_date)).distinct()
-        
+
         # then work out actual results based on occurrences
         pks = []
         for event in approx_qs:
             occs = event.all_occurrences(start=from_date, end=to_date)
             if first_item(occs):
                 pks.append(event.pk)
-        
+
         # and then filter the queryset
         return self.filter(pk__in=pks)
 
@@ -80,53 +80,53 @@ class EventManager(models.Manager.from_queryset(EventQuerySet)):
 
 class BaseEvent(models.Model):
     objects = EventManager()
-    
+
     def all_occurrences(self, start=None, end=None, limit=None):
         return self.occurrence_set.all_occurrences(start, end, limit=limit)
-    
+
     def next_occurrence(self, start=None):
         if not start:
             start = datetime.now()
         return first_item(self.all_occurrences(start=start))
-    
+
     class Meta:
         abstract = True
-    
+
 
 class OccurrenceQuerySet(SortableQuerySet):
     def for_period(self, from_date=None, to_date=None):
         # TODO optimise as with EventQuerySet
-        
+
         approx_qs = self
-        
+
         # first winnow down as much as possible via queryset filtering
         if from_date:
             from_date = as_datetime(from_date)
             approx_qs = approx_qs.filter(
-                Q(end__gte=from_date) | \
-                (Q(repeat__isnull=False) & \
-                 (Q(repeat_until__gte=from_date) | \
+                Q(end__gte=from_date) |
+                (Q(repeat__isnull=False) &
+                 (Q(repeat_until__gte=from_date) |
                   Q(repeat_until__isnull=True)))).distinct()
-        
+
         if to_date:
             to_date = as_datetime(to_date, True)
             approx_qs = approx_qs.filter(Q(start__lte=to_date)).distinct()
-        
+
         # then work out actual results based on occurrences
         pks = []
         for occurrence in approx_qs:
             occs = occurrence.all_occurrences(start=from_date, end=to_date)
             if first_item(occs):
                 pks.append(occurrence.pk)
-        
+
         # and then filter the queryset
         return self.filter(pk__in=pks)
-    
+
     def all_occurrences(self, start=None, end=None, limit=None):
         """Return a generator yielding a (start, end) tuple for all occurrence
            dates in the queryset, taking repetition into account, up to a
            maximum limit if specified. """
-         
+
         count = 0
         grouped = []
         for occ in self:
@@ -138,7 +138,7 @@ class OccurrenceQuerySet(SortableQuerySet):
             else:
                 occ_data = occ.occurrence_data
                 grouped.append([occ_data, gen, next_date])
-        
+
         while limit is None or count < limit:
             # work out which generator will yield the earliest date (based on
             # start; end is ignored)
@@ -146,14 +146,14 @@ class OccurrenceQuerySet(SortableQuerySet):
             for group in grouped:
                 if not next_group or group[2][0] < next_group[2][0]:
                     next_group = group
-            
+
             if not next_group:
                 return
-            
+
             # yield the next (start, end) pair, with occurrence data
             yield next_group[2] + (next_group[0], )
             count += 1
-            
+
             # update the group, so we don't keep yielding the same date
             try:
                 next_group[2] = next_group[1].next()
@@ -168,63 +168,64 @@ class OccurrenceManager(models.Manager.from_queryset(OccurrenceQuerySet)):
 class BaseOccurrence(models.Model):
     # override this in subclasses
     occurrence_data = None
-    
+
     REPEAT_MAX = 200
-    
+
     REPEAT_CHOICES = (
         (rrule.DAILY, 'Daily'),
         (rrule.WEEKLY, 'Weekly'),
         (rrule.MONTHLY, 'Monthly'),
         (rrule.YEARLY, 'Yearly'),
     )
-    
+
     start = models.DateTimeField(db_index=True)
     end = models.DateTimeField(db_index=True)
-    
+
     repeat = models.PositiveSmallIntegerField(choices=REPEAT_CHOICES,
                                               null=True, blank=True)
     repeat_until = models.DateField(null=True, blank=True)
-    
+
     def clean(self):
         if self.start and self.end and self.start >= self.end:
             msg = u"End must be after start"
             raise ValidationError(msg)
-        
+
         if self.repeat_until and self.repeat is None:
-            msg = u"Select a repeat interval, or remove the 'repeat until' date"
+            msg = u"Select a repeat interval, or remove the " \
+                  u"'repeat until' date"
             raise ValidationError(msg)
-        
+
         if self.repeat_until and self.repeat_until < self.start.date():
             msg = u"'Repeat until' cannot be before the first occurrence"
             raise ValidationError(msg)
 
     objects = OccurrenceManager()
-    
+
     def next_occurrence(self, start=None):
         if not start:
             start = datetime.now()
         return first_item(self.all_occurrences(start=start))
-    
+
     def all_occurrences(self, start=None, end=None):
         """Return a generator yielding a (start, end) tuple for all dates
-           for this occurrence, taking repetition into account. 
+           for this occurrence, taking repetition into account.
            TODO handle start efficiently
            """
-        
+
         start = start and as_datetime(start)
         end = end and as_datetime(end, True)
-        
-        if self.repeat is None: # might be 0
+
+        if self.repeat is None:  # might be 0
             if (not start or self.start >= start) and \
                (not end or self.start <= end):
                 yield (self.start, self.end, self.occurrence_data)
         else:
             delta = self.end - self.start
             until = self.repeat_until + timedelta(1) \
-                            if self.repeat_until else None
-            repeater = rrule.rrule(self.repeat, dtstart=self.start, 
+                if self.repeat_until else None
+            repeater = rrule.rrule(self.repeat, dtstart=self.start,
                                    until=until, count=self.REPEAT_MAX)
-            
+
             for occ_start in repeater:
                 if (not start or occ_start >= start) and \
                    (not end or self.start <= end):
