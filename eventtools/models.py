@@ -6,7 +6,6 @@ from datetime import timedelta, date, datetime
 from django.db import models
 from django.db.models import Q
 from django.core.exceptions import ValidationError
-from django.utils.functional import cached_property
 
 
 def first_item(gen):
