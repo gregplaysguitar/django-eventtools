@@ -24,6 +24,8 @@ def as_datetime(d, end=False):
         else:
             time_args = (0, 0, 0)
         return datetime(*(date_args + time_args))
+    # otherwise assume it's a datetime
+    return d
 
 
 class SortableQuerySet(models.QuerySet):
@@ -40,6 +42,7 @@ class SortableQuerySet(models.QuerySet):
 
 
 class EventQuerySet(SortableQuerySet):
+
     def for_period(self, from_date=None, to_date=None):
         """Filter by the given dates, returning a queryset of events with
            occurrences falling within the range. """
@@ -69,8 +72,6 @@ class EventQuerySet(SortableQuerySet):
         # then work out actual results based on occurrences
         pks = []
         for event in approx_qs:
-            print from_date, to_date
-            print event, len(list(event.all_occurrences(from_date=from_date, to_date=to_date)))
             occs = event.all_occurrences(from_date=from_date, to_date=to_date)
             if first_item(occs):
                 pks.append(event.pk)
@@ -100,6 +101,7 @@ class BaseEvent(models.Model):
 
 
 class OccurrenceQuerySet(SortableQuerySet):
+
     def for_period(self, from_date=None, to_date=None):
         """Filter by the given dates, returning a queryset of Occurrence
            instances with occurrences falling within the range. """
@@ -222,12 +224,8 @@ class BaseOccurrence(models.Model):
            TODO handle start efficiently
            """
 
-        print from_date, to_date
-        
         from_date = from_date and as_datetime(from_date)
         to_date = to_date and as_datetime(to_date, True)
-
-        print from_date, to_date
 
         if self.repeat is None:  # might be 0
             if (not from_date or self.start >= from_date) and \
