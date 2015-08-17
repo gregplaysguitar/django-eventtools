@@ -29,18 +29,21 @@ def as_datetime(d, end=False):
 class SortableQuerySet(models.QuerySet):
     """TODO"""
 
-    def sort_by_next(self, start=None):
+    def sort_by_next(self, from_date=None):
         """Sort the queryset by next_occurrence. Note that this method
            necessarily returns a list, not a queryset. """
 
         def sort_key(obj):
-            occ = obj.next_occurrence(start)
+            occ = obj.next_occurrence(from_date)
             return occ[0] if occ else None
         return sorted([e for e in self if sort_key(e)], key=sort_key)
 
 
 class EventQuerySet(SortableQuerySet):
     def for_period(self, from_date=None, to_date=None):
+        """Filter by the given dates, returning a queryset of events with
+           occurrences falling within the range. """
+
         # TODO this is probably very inefficient. Investigate writing a
         # postgres function to handle recurring dates, or caching, or only
         # working in occurrences rather than querying the events table?
@@ -66,7 +69,9 @@ class EventQuerySet(SortableQuerySet):
         # then work out actual results based on occurrences
         pks = []
         for event in approx_qs:
-            occs = event.all_occurrences(start=from_date, end=to_date)
+            print from_date, to_date
+            print event, len(list(event.all_occurrences(from_date=from_date, to_date=to_date)))
+            occs = event.all_occurrences(from_date=from_date, to_date=to_date)
             if first_item(occs):
                 pks.append(event.pk)
 
@@ -81,13 +86,14 @@ class EventManager(models.Manager.from_queryset(EventQuerySet)):
 class BaseEvent(models.Model):
     objects = EventManager()
 
-    def all_occurrences(self, start=None, end=None, limit=None):
-        return self.occurrence_set.all_occurrences(start, end, limit=limit)
+    def all_occurrences(self, from_date=None, to_date=None, limit=None):
+        return self.occurrence_set.all_occurrences(from_date, to_date,
+                                                   limit=limit)
 
-    def next_occurrence(self, start=None):
-        if not start:
-            start = datetime.now()
-        return first_item(self.all_occurrences(start=start))
+    def next_occurrence(self, from_date=None):
+        if not from_date:
+            from_date = datetime.now()
+        return first_item(self.all_occurrences(from_date=from_date))
 
     class Meta:
         abstract = True
@@ -95,6 +101,9 @@ class BaseEvent(models.Model):
 
 class OccurrenceQuerySet(SortableQuerySet):
     def for_period(self, from_date=None, to_date=None):
+        """Filter by the given dates, returning a queryset of Occurrence
+           instances with occurrences falling within the range. """
+
         # TODO optimise as with EventQuerySet
 
         approx_qs = self
@@ -115,14 +124,15 @@ class OccurrenceQuerySet(SortableQuerySet):
         # then work out actual results based on occurrences
         pks = []
         for occurrence in approx_qs:
-            occs = occurrence.all_occurrences(start=from_date, end=to_date)
+            occs = occurrence.all_occurrences(from_date=from_date,
+                                              to_date=to_date)
             if first_item(occs):
                 pks.append(occurrence.pk)
 
         # and then filter the queryset
         return self.filter(pk__in=pks)
 
-    def all_occurrences(self, start=None, end=None, limit=None):
+    def all_occurrences(self, from_date=None, to_date=None, limit=None):
         """Return a generator yielding a (start, end) tuple for all occurrence
            dates in the queryset, taking repetition into account, up to a
            maximum limit if specified. """
@@ -130,7 +140,7 @@ class OccurrenceQuerySet(SortableQuerySet):
         count = 0
         grouped = []
         for occ in self:
-            gen = occ.all_occurrences(start, end)
+            gen = occ.all_occurrences(from_date, to_date)
             try:
                 next_date = gen.next()
             except StopIteration:
@@ -201,23 +211,27 @@ class BaseOccurrence(models.Model):
 
     objects = OccurrenceManager()
 
-    def next_occurrence(self, start=None):
-        if not start:
-            start = datetime.now()
-        return first_item(self.all_occurrences(start=start))
+    def next_occurrence(self, from_date=None):
+        if not from_date:
+            from_date = datetime.now()
+        return first_item(self.all_occurrences(from_date=from_date))
 
-    def all_occurrences(self, start=None, end=None):
+    def all_occurrences(self, from_date=None, to_date=None):
         """Return a generator yielding a (start, end) tuple for all dates
            for this occurrence, taking repetition into account.
            TODO handle start efficiently
            """
 
-        start = start and as_datetime(start)
-        end = end and as_datetime(end, True)
+        print from_date, to_date
+        
+        from_date = from_date and as_datetime(from_date)
+        to_date = to_date and as_datetime(to_date, True)
+
+        print from_date, to_date
 
         if self.repeat is None:  # might be 0
-            if (not start or self.start >= start) and \
-               (not end or self.start <= end):
+            if (not from_date or self.start >= from_date) and \
+               (not to_date or self.start <= to_date):
                 yield (self.start, self.end, self.occurrence_data)
         else:
             delta = self.end - self.start
@@ -227,8 +241,8 @@ class BaseOccurrence(models.Model):
                                    until=until, count=self.REPEAT_MAX)
 
             for occ_start in repeater:
-                if (not start or occ_start >= start) and \
-                   (not end or self.start <= end):
+                if (not from_date or occ_start >= from_date) and \
+                   (not to_date or occ_start <= to_date):
                     yield (occ_start, occ_start + delta, self.occurrence_data)
 
     class Meta:
