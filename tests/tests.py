@@ -111,9 +111,11 @@ class EventToolsTestCase(TestCase):
         self.assertEqual(len(dates), 2)
 
         # test queryset filtering
-        qs = occs.for_period(from_date=date(2015, 1, 1),
-                             to_date=date(2016, 12, 31),)
+        qs = occs.for_period(from_date=date(2015, 1, 1))
         self.assertEqual(qs.count(), 2)
+
+        qs = occs.for_period(to_date=date(2010, 1, 1))
+        self.assertEqual(qs.get().event, self.christmas)
 
         qs = occs.for_period(from_date=date(2017, 1, 1),
                              to_date=date(2017, 12, 31),)
@@ -164,16 +166,16 @@ class EventToolsTestCase(TestCase):
         # one christmas per year
         christmas_qs = Event.objects.filter(pk=self.christmas.pk)
         for i in range(0, 10):
-            qs = christmas_qs.for_period(
+            occs = list(christmas_qs.all_occurrences(
                 from_date=self.first_of_year + relativedelta(years=i),
-                to_date=self.first_of_year + relativedelta(years=i + 1))
-            self.assertEqual(qs.count(), 1)
+                to_date=self.first_of_year + relativedelta(years=i + 1)))
+            self.assertEqual(len(occs), 1)
 
         # but none in the first half of the year
-        qs = christmas_qs.for_period(
+        occs = list(christmas_qs.all_occurrences(
             from_date=self.first_of_year + relativedelta(years=1),
-            to_date=self.first_of_year + relativedelta(months=6))
-        self.assertEqual(qs.count(), 0)
+            to_date=self.first_of_year + relativedelta(months=6)))
+        self.assertEqual(len(occs), 0)
 
         def sorted_events(events):
             return sorted(events, key=lambda obj: obj.pk)
@@ -203,10 +205,16 @@ class EventToolsTestCase(TestCase):
         events = Event.objects.filter(
             pk__in=(self.christmas.pk, self.future.pk, self.past.pk))
 
-        qs = events.for_period(from_date=date(2015, 1, 1),
-                               to_date=date(2016, 12, 31),)
+        qs = events.for_period(from_date=date(2015, 1, 1))
         self.assertEqual(qs.count(), 2)
+
+        qs = events.for_period(to_date=date(2010, 1, 1))
+        self.assertEqual(qs.get(), self.christmas)
 
         qs = events.for_period(from_date=date(2017, 1, 1),
                                to_date=date(2017, 12, 31),)
         self.assertEqual(qs.get(), self.christmas)
+
+    def test_occurrence_data(self):
+        occ = self.christmas.occurrence_set.get()
+        self.assertEqual(occ.next_occurrence()[2], occ.occurrence_data)

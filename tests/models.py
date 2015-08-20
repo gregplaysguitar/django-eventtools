@@ -12,3 +12,9 @@ class Event(BaseEvent):
 
 class Occurrence(BaseOccurrence):
     event = models.ForeignKey(Event)
+
+    @property
+    def occurrence_data(self):
+        return {
+            'event': self.event,
+        }
