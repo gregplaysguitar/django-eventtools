@@ -111,6 +111,24 @@ class BaseQuerySet(models.QuerySet):
             (obj.all_occurrences(from_date, to_date) for obj in self), limit)
 
 
+class BaseModel(models.Model):
+    """Abstract model providing common occurrence-related functionality. """
+
+    def all_occurrences(self, from_date=None, to_date=None):
+        raise NotImplementedError()
+
+    def next_occurrence(self, from_date=None, to_date=None):
+        """Return a generator yielding a (start, end) tuple for all dates
+           for this event, taking repetition into account. """
+        if not from_date:
+            from_date = datetime.now()
+        return first_item(
+            self.all_occurrences(from_date=from_date, to_date=to_date))
+
+    class Meta:
+        abstract = True
+
+
 class EventQuerySet(BaseQuerySet):
     """QuerySet for BaseEvent subclasses. """
 
@@ -146,7 +164,7 @@ class EventManager(models.Manager.from_queryset(EventQuerySet)):
     use_for_related_fields = True
 
 
-class BaseEvent(models.Model):
+class BaseEvent(BaseModel):
     """Abstract model providing occurrence-related methods for events.
 
        Subclasses should have a related BaseOccurrence subclass. """
@@ -159,12 +177,6 @@ class BaseEvent(models.Model):
 
         return self.occurrence_set.all_occurrences(from_date, to_date,
                                                    limit=limit)
-
-    def next_occurrence(self, from_date=None, to_date=None):
-        if not from_date:
-            from_date = datetime.now()
-        return first_item(
-            self.all_occurrences(from_date=from_date, to_date=to_date))
 
     class Meta:
         abstract = True
@@ -204,7 +216,7 @@ class OccurrenceManager(models.Manager.from_queryset(OccurrenceQuerySet)):
     use_for_related_fields = True
 
 
-class BaseOccurrence(models.Model):
+class BaseOccurrence(BaseModel):
     """Abstract model providing occurrence-related methods for occurrences.
 
        Subclasses will usually have a ForeignKey pointing to a BaseEvent
@@ -245,11 +257,6 @@ class BaseOccurrence(models.Model):
 
     objects = OccurrenceManager()
 
-    def next_occurrence(self, from_date=None, to_date=None):
-        if not from_date:
-            from_date = datetime.now()
-        return first_item(
-            self.all_occurrences(from_date=from_date, to_date=to_date))
 
     def all_occurrences(self, from_date=None, to_date=None):
         """Return a generator yielding a (start, end) tuple for all dates
