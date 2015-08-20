@@ -27,56 +27,112 @@ def as_datetime(d, end=False):
     return d
 
 
-class SortableQuerySet(models.QuerySet):
-    """TODO"""
+def combine_occurrences(generators, limit):
+    """Merge the occurrences in two or more generators, in date order.
+
+       Returns a generator. """
+
+    count = 0
+    grouped = []
+    for gen in generators:
+        try:
+            next_date = gen.next()
+        except StopIteration:
+            pass
+        else:
+            grouped.append({'generator': gen, 'next': next_date})
+
+    while limit is None or count < limit:
+        # all generators must have finished if there are no groups
+        if not len(grouped):
+            return
+
+        # work out which generator will yield the earliest date (based on
+        # start - end is ignored)
+        next_group = None
+        for group in grouped:
+            if not next_group or group['next'][0] < next_group['next'][0]:
+                next_group = group
+
+        # yield the next (start, end) pair, with occurrence data
+        yield next_group['next']
+        count += 1
+
+        # update the group's next item, so we don't keep yielding the same date
+        try:
+            next_group['next'] = next_group['generator'].next()
+        except StopIteration:
+            # remove the group if there's none left
+            grouped.remove(next_group)
+
+
+def filter_invalid(approx_qs, from_date, to_date):
+    """Filter out any results from the queryset which do not have an occurrence
+       within the given range. """
+
+    # work out what to exclude based on occurrences
+    exclude_pks = []
+    for obj in approx_qs:
+        if not obj.next_occurrence(from_date=from_date, to_date=to_date):
+            exclude_pks.append(obj.pk)
+
+    # and then apply the filtering to the queryset itself
+    return approx_qs.exclude(pk__in=exclude_pks)
+
+
+class BaseQuerySet(models.QuerySet):
+    """Base QuerySet for models which have occurrences. """
+
+    def for_period(self, from_date=None, to_date=None):
+        # subclasses should implement this
+        raise NotImplementedError()
 
     def sort_by_next(self, from_date=None):
-        """Sort the queryset by next_occurrence. Note that this method
-           necessarily returns a list, not a queryset. """
+        """Sort the queryset by next_occurrence.
+
+        Note that this method necessarily returns a list, not a queryset. """
 
         def sort_key(obj):
-            occ = obj.next_occurrence(from_date)
+            occ = obj.next_occurrence(from_date=from_date)
             return occ[0] if occ else None
         return sorted([e for e in self if sort_key(e)], key=sort_key)
 
+    def all_occurrences(self, from_date=None, to_date=None, limit=None):
+        """Return a generator yielding a (start, end) tuple for all occurrence
+           dates in the queryset, taking repetition into account, up to a
+           maximum limit if specified. """
 
-class EventQuerySet(SortableQuerySet):
+        return combine_occurrences(
+            (obj.all_occurrences(from_date, to_date) for obj in self), limit)
 
+
+class EventQuerySet(BaseQuerySet):
     def for_period(self, from_date=None, to_date=None):
-        """Filter by the given dates, returning a queryset of events with
-           occurrences falling within the range. """
+        """Filter by the given dates, returning a queryset of Occurrence
+           instances with occurrences falling within the range. """
 
-        # TODO this is probably very inefficient. Investigate writing a
-        # postgres function to handle recurring dates, or caching, or only
-        # working in occurrences rather than querying the events table?
-        # worst case, store next_occurrence on the events table and update on
-        # cron
+        filtered_qs = self
 
-        approx_qs = self
+        # to_date filtering is accurate
+        if to_date:
+            to_date = as_datetime(to_date, True)
+            filtered_qs = filtered_qs.filter(
+                Q(occurrence__start__lte=to_date)).distinct()
 
-        # first winnow down as much as possible via queryset filtering
         if from_date:
+            # but from_date isn't, due to uncertainty with repetitions, so
+            # first winnow down as much as possible via queryset filtering
             from_date = as_datetime(from_date)
-            approx_qs = approx_qs.filter(
+            filtered_qs = filtered_qs.filter(
                 Q(occurrence__end__gte=from_date) |
                 (Q(occurrence__repeat__isnull=False) &
                  (Q(occurrence__repeat_until__gte=from_date) |
                   Q(occurrence__repeat_until__isnull=True)))).distinct()
 
-        if to_date:
-            to_date = as_datetime(to_date, True)
-            approx_qs = approx_qs.filter(
-                Q(occurrence__start__lte=to_date)).distinct()
+            # then filter out invalid results
+            return filter_invalid(filtered_qs, from_date, to_date)
 
-        # then work out actual results based on occurrences
-        exclude_pks = []
-        for event in approx_qs:
-            occs = event.all_occurrences(from_date=from_date, to_date=to_date)
-            if not first_item(occs):
-                exclude_pks.append(event.pk)
-
-        # and then filter the queryset
-        return approx_qs.exclude(pk__in=exclude_pks)
+        return filtered_qs
 
 
 class EventManager(models.Manager.from_queryset(EventQuerySet)):
@@ -90,86 +146,42 @@ class BaseEvent(models.Model):
         return self.occurrence_set.all_occurrences(from_date, to_date,
                                                    limit=limit)
 
-    def next_occurrence(self, from_date=None):
+    def next_occurrence(self, from_date=None, to_date=None):
         if not from_date:
             from_date = datetime.now()
-        return first_item(self.all_occurrences(from_date=from_date))
+        return first_item(
+            self.all_occurrences(from_date=from_date, to_date=to_date))
 
     class Meta:
         abstract = True
 
 
-class OccurrenceQuerySet(SortableQuerySet):
-
+class OccurrenceQuerySet(BaseQuerySet):
     def for_period(self, from_date=None, to_date=None):
         """Filter by the given dates, returning a queryset of Occurrence
            instances with occurrences falling within the range. """
 
-        # TODO optimise as with EventQuerySet
+        filtered_qs = self
 
-        approx_qs = self
+        # to_date filtering is accurate
+        if to_date:
+            to_date = as_datetime(to_date, True)
+            filtered_qs = filtered_qs.filter(Q(start__lte=to_date)).distinct()
 
-        # first winnow down as much as possible via queryset filtering
         if from_date:
+            # but from_date isn't, due to uncertainty with repetitions, so
+            # first winnow down as much as possible via queryset filtering
             from_date = as_datetime(from_date)
-            approx_qs = approx_qs.filter(
+            filtered_qs = filtered_qs.filter(
                 Q(end__gte=from_date) |
                 (Q(repeat__isnull=False) &
                  (Q(repeat_until__gte=from_date) |
                   Q(repeat_until__isnull=True)))).distinct()
 
-        if to_date:
-            to_date = as_datetime(to_date, True)
-            approx_qs = approx_qs.filter(Q(start__lte=to_date)).distinct()
+            # then filter out invalid results
+            return filter_invalid(filtered_qs, from_date, to_date)
 
-        # then work out actual results based on occurrences
-        exclude_pks = []
-        for occurrence in approx_qs:
-            occs = occurrence.all_occurrences(from_date=from_date,
-                                              to_date=to_date)
-            if not first_item(occs):
-                exclude_pks.append(occurrence.pk)
-
-        # and then filter the queryset
-        return approx_qs.exclude(pk__in=exclude_pks)
-
-    def all_occurrences(self, from_date=None, to_date=None, limit=None):
-        """Return a generator yielding a (start, end) tuple for all occurrence
-           dates in the queryset, taking repetition into account, up to a
-           maximum limit if specified. """
-
-        count = 0
-        grouped = []
-        for occ in self:
-            gen = occ.all_occurrences(from_date, to_date)
-            try:
-                next_date = gen.next()
-            except StopIteration:
-                pass
-            else:
-                occ_data = occ.occurrence_data
-                grouped.append([occ_data, gen, next_date])
-
-        while limit is None or count < limit:
-            # work out which generator will yield the earliest date (based on
-            # start; end is ignored)
-            next_group = None
-            for group in grouped:
-                if not next_group or group[2][0] < next_group[2][0]:
-                    next_group = group
-
-            if not next_group:
-                return
-
-            # yield the next (start, end) pair, with occurrence data
-            yield next_group[2] + (next_group[0], )
-            count += 1
-
-            # update the group, so we don't keep yielding the same date
-            try:
-                next_group[2] = next_group[1].next()
-            except StopIteration:
-                grouped.remove(next_group)
+        return filtered_qs
 
 
 class OccurrenceManager(models.Manager.from_queryset(OccurrenceQuerySet)):
@@ -212,10 +224,11 @@ class BaseOccurrence(models.Model):
 
     objects = OccurrenceManager()
 
-    def next_occurrence(self, from_date=None):
+    def next_occurrence(self, from_date=None, to_date=None):
         if not from_date:
             from_date = datetime.now()
-        return first_item(self.all_occurrences(from_date=from_date))
+        return first_item(
+            self.all_occurrences(from_date=from_date, to_date=to_date))
 
     def all_occurrences(self, from_date=None, to_date=None):
         """Return a generator yielding a (start, end) tuple for all dates
