@@ -69,14 +69,14 @@ class EventQuerySet(SortableQuerySet):
                 Q(occurrence__start__lte=to_date)).distinct()
 
         # then work out actual results based on occurrences
-        pks = []
+        exclude_pks = []
         for event in approx_qs:
             occs = event.all_occurrences(from_date=from_date, to_date=to_date)
-            if first_item(occs):
-                pks.append(event.pk)
+            if not first_item(occs):
+                exclude_pks.append(event.pk)
 
         # and then filter the queryset
-        return self.filter(pk__in=pks)
+        return approx_qs.exclude(pk__in=exclude_pks)
 
 
 class EventManager(models.Manager.from_queryset(EventQuerySet)):
@@ -123,15 +123,15 @@ class OccurrenceQuerySet(SortableQuerySet):
             approx_qs = approx_qs.filter(Q(start__lte=to_date)).distinct()
 
         # then work out actual results based on occurrences
-        pks = []
+        exclude_pks = []
         for occurrence in approx_qs:
             occs = occurrence.all_occurrences(from_date=from_date,
                                               to_date=to_date)
-            if first_item(occs):
-                pks.append(occurrence.pk)
+            if not first_item(occs):
+                exclude_pks.append(occurrence.pk)
 
         # and then filter the queryset
-        return self.filter(pk__in=pks)
+        return approx_qs.exclude(pk__in=exclude_pks)
 
     def all_occurrences(self, from_date=None, to_date=None, limit=None):
         """Return a generator yielding a (start, end) tuple for all occurrence
