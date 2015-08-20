@@ -257,12 +257,9 @@ class BaseOccurrence(BaseModel):
 
     objects = OccurrenceManager()
 
-
     def all_occurrences(self, from_date=None, to_date=None):
         """Return a generator yielding a (start, end) tuple for all dates
-           for this occurrence, taking repetition into account.
-           TODO handle start efficiently
-           """
+           for this occurrence, taking repetition into account. """
 
         from_date = from_date and as_datetime(from_date)
         to_date = to_date and as_datetime(to_date, True)
@@ -288,4 +285,4 @@ class BaseOccurrence(BaseModel):
         abstract = True
 
     def __unicode__(self):
-        return '%s' % (self.start)
+        return u"%s" % (self.start)

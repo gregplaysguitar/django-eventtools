@@ -53,3 +53,8 @@ Assuming virtualenvwrapper is installed:
     > mkvirtualenv test
     > ./setup.py install
     > ./runtests.py
+
+
+## Todo
+
+- Handle from_date more efficiently in BaseOccurrence.all_occurrences 
