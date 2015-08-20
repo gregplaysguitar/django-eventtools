@@ -16,6 +16,11 @@ def first_item(gen):
 
 
 def as_datetime(d, end=False):
+    """Normalise a date/datetime argument to a datetime for use in filters
+
+    If a date is passed, it will be converted to a datetime with the time set
+    to 0:00, or 23:59:59 if end is True."""
+
     if type(d) is date:
         date_args = tuple(d.timetuple())[:3]
         if end:
@@ -107,6 +112,8 @@ class BaseQuerySet(models.QuerySet):
 
 
 class EventQuerySet(BaseQuerySet):
+    """QuerySet for BaseEvent subclasses. """
+
     def for_period(self, from_date=None, to_date=None):
         """Filter by the given dates, returning a queryset of Occurrence
            instances with occurrences falling within the range. """
@@ -140,9 +147,16 @@ class EventManager(models.Manager.from_queryset(EventQuerySet)):
 
 
 class BaseEvent(models.Model):
+    """Abstract model providing occurrence-related methods for events.
+
+       Subclasses should have a related BaseOccurrence subclass. """
+
     objects = EventManager()
 
     def all_occurrences(self, from_date=None, to_date=None, limit=None):
+        """Return a generator yielding a (start, end) tuple for all dates
+           for this event, taking repetition into account. """
+
         return self.occurrence_set.all_occurrences(from_date, to_date,
                                                    limit=limit)
 
@@ -157,6 +171,8 @@ class BaseEvent(models.Model):
 
 
 class OccurrenceQuerySet(BaseQuerySet):
+    """QuerySet for BaseOccurrence subclasses. """
+
     def for_period(self, from_date=None, to_date=None):
         """Filter by the given dates, returning a queryset of Occurrence
            instances with occurrences falling within the range. """
@@ -189,6 +205,11 @@ class OccurrenceManager(models.Manager.from_queryset(OccurrenceQuerySet)):
 
 
 class BaseOccurrence(models.Model):
+    """Abstract model providing occurrence-related methods for occurrences.
+
+       Subclasses will usually have a ForeignKey pointing to a BaseEvent
+       subclass. """
+
     # override this in subclasses
     occurrence_data = None
 
