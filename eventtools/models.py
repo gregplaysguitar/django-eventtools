@@ -118,8 +118,8 @@ class BaseModel(models.Model):
         raise NotImplementedError()
 
     def next_occurrence(self, from_date=None, to_date=None):
-        """Return a generator yielding a (start, end) tuple for all dates
-           for this event, taking repetition into account. """
+        """Return next occurrence as a (start, end) tuple for this instance,
+           between from_date and to_date, taking repetition into account. """
         if not from_date:
             from_date = datetime.now()
         return first_item(
