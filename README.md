@@ -86,4 +86,4 @@ Assuming virtualenvwrapper is installed:
 
 ## Todo
 
-- Handle from_date more efficiently in BaseOccurrence.all_occurrences 
+✔ Handle from_date more efficiently in BaseOccurrence.all_occurrences 
