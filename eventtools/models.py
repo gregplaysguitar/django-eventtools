@@ -270,15 +270,22 @@ class BaseOccurrence(BaseModel):
                 yield (self.start, self.end, self.occurrence_data)
         else:
             delta = self.end - self.start
-            until = self.repeat_until + timedelta(1) \
-                if self.repeat_until else None
             repeater = rrule.rrule(self.repeat, dtstart=self.start,
-                                   until=until, count=self.REPEAT_MAX)
+                                   count=self.REPEAT_MAX)
+
+            if self.repeat_until and (
+                    not to_date or
+                    as_datetime(self.repeat_until, True) > to_date):
+                to_date = as_datetime(self.repeat_until, True)
+
+            if from_date or to_date:
+                repeater = repeater.between(
+                    from_date or datetime(0, 0, 0, 0, 0),
+                    to_date or datetime(9999, 12, 31, 23, 59),
+                )
 
             for occ_start in repeater:
-                if (not from_date or occ_start >= from_date) and \
-                   (not to_date or occ_start <= to_date):
-                    yield (occ_start, occ_start + delta, self.occurrence_data)
+                yield (occ_start, occ_start + delta, self.occurrence_data)
 
     class Meta:
         ordering = ('start', 'end')
