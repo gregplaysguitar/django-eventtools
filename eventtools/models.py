@@ -251,7 +251,8 @@ class BaseOccurrence(BaseModel):
                   u"'repeat until' date"
             raise ValidationError(msg)
 
-        if self.repeat_until and self.repeat_until < self.start.date():
+        if self.start and self.repeat_until and \
+           self.repeat_until < self.start.date():
             msg = u"'Repeat until' cannot be before the first occurrence"
             raise ValidationError(msg)
 
