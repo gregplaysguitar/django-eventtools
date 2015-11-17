@@ -10,7 +10,7 @@ from django.core.exceptions import ValidationError
 
 def first_item(gen):
     try:
-        return gen.next()
+        return next(gen)
     except StopIteration:
         return None
 
@@ -41,7 +41,7 @@ def combine_occurrences(generators, limit):
     grouped = []
     for gen in generators:
         try:
-            next_date = gen.next()
+            next_date = next(gen)
         except StopIteration:
             pass
         else:
@@ -65,7 +65,7 @@ def combine_occurrences(generators, limit):
 
         # update the group's next item, so we don't keep yielding the same date
         try:
-            next_group['next'] = next_group['generator'].next()
+            next_group['next'] = next(next_group['generator'])
         except StopIteration:
             # remove the group if there's none left
             grouped.remove(next_group)
