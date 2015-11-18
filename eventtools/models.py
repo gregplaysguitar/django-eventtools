@@ -107,8 +107,11 @@ class BaseQuerySet(models.QuerySet):
            dates in the queryset, taking repetition into account, up to a
            maximum limit if specified. """
 
+        # winnow out events which are definitely invalid
+        qs = self.for_period(from_date, to_date)
+
         return combine_occurrences(
-            (obj.all_occurrences(from_date, to_date) for obj in self), limit)
+            (obj.all_occurrences(from_date, to_date) for obj in qs), limit)
 
 
 class BaseModel(models.Model):
