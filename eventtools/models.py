@@ -132,9 +132,14 @@ class BaseModel(models.Model):
 class EventQuerySet(BaseQuerySet):
     """QuerySet for BaseEvent subclasses. """
 
-    def for_period(self, from_date=None, to_date=None):
+    def for_period(self, from_date=None, to_date=None, exact=False):
         """Filter by the given dates, returning a queryset of Occurrence
-           instances with occurrences falling within the range. """
+           instances with occurrences falling within the range.
+
+           Due to uncertainty with repetitions, from_date filtering is only an
+           approximation. If exact results are needed, pass exact=True - this
+           will use occurrences to exclude invalid results, but may be very
+           slow, especially for large querysets. """
 
         filtered_qs = self
 
@@ -146,7 +151,7 @@ class EventQuerySet(BaseQuerySet):
 
         if from_date:
             # but from_date isn't, due to uncertainty with repetitions, so
-            # first winnow down as much as possible via queryset filtering
+            # just winnow down as much as possible via queryset filtering
             from_date = as_datetime(from_date)
             filtered_qs = filtered_qs.filter(
                 Q(occurrence__end__gte=from_date) |
@@ -154,8 +159,9 @@ class EventQuerySet(BaseQuerySet):
                  (Q(occurrence__repeat_until__gte=from_date) |
                   Q(occurrence__repeat_until__isnull=True)))).distinct()
 
-            # then filter out invalid results
-            return filter_invalid(filtered_qs, from_date, to_date)
+            # filter out invalid results if requested
+            if exact:
+                filtered_qs = filter_invalid(filtered_qs, from_date, to_date)
 
         return filtered_qs
 
@@ -185,9 +191,14 @@ class BaseEvent(BaseModel):
 class OccurrenceQuerySet(BaseQuerySet):
     """QuerySet for BaseOccurrence subclasses. """
 
-    def for_period(self, from_date=None, to_date=None):
+    def for_period(self, from_date=None, to_date=None, exact=False):
         """Filter by the given dates, returning a queryset of Occurrence
-           instances with occurrences falling within the range. """
+           instances with occurrences falling within the range.
+
+           Due to uncertainty with repetitions, from_date filtering is only an
+           approximation. If exact results are needed, pass exact=True - this
+           will use occurrences to exclude invalid results, but may be very
+           slow, especially for large querysets. """
 
         filtered_qs = self
 
@@ -198,7 +209,7 @@ class OccurrenceQuerySet(BaseQuerySet):
 
         if from_date:
             # but from_date isn't, due to uncertainty with repetitions, so
-            # first winnow down as much as possible via queryset filtering
+            # just winnow down as much as possible via queryset filtering
             from_date = as_datetime(from_date)
             filtered_qs = filtered_qs.filter(
                 Q(end__gte=from_date) |
@@ -206,8 +217,9 @@ class OccurrenceQuerySet(BaseQuerySet):
                  (Q(repeat_until__gte=from_date) |
                   Q(repeat_until__isnull=True)))).distinct()
 
-            # then filter out invalid results
-            return filter_invalid(filtered_qs, from_date, to_date)
+            # filter out invalid results if requested
+            if exact:
+                filtered_qs = filter_invalid(filtered_qs, from_date, to_date)
 
         return filtered_qs
 
