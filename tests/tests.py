@@ -111,14 +111,15 @@ class EventToolsTestCase(TestCase):
         self.assertEqual(len(dates), 2)
 
         # test queryset filtering
-        qs = occs.for_period(from_date=date(2015, 1, 1))
+        qs = occs.for_period(from_date=date(2015, 1, 1), exact=True)
         self.assertEqual(qs.count(), 2)
 
-        qs = occs.for_period(to_date=date(2010, 1, 1))
+        qs = occs.for_period(to_date=date(2010, 1, 1), exact=True)
         self.assertEqual(qs.get().event, self.christmas)
 
         qs = occs.for_period(from_date=date(2017, 1, 1),
-                             to_date=date(2017, 12, 31),)
+                             to_date=date(2017, 12, 31),
+                             exact=True)
         self.assertEqual(qs.get().event, self.christmas)
 
     def test_single_event(self):
@@ -195,7 +196,8 @@ class EventToolsTestCase(TestCase):
             from_date = self.first_of_year + timedelta(days)
             qs = Event.objects.for_period(
                 from_date=from_date,
-                to_date=from_date
+                to_date=from_date,
+                exact=True,
             ).distinct()
 
             events = sorted_events(list(qs))
@@ -205,14 +207,15 @@ class EventToolsTestCase(TestCase):
         events = Event.objects.filter(
             pk__in=(self.christmas.pk, self.future.pk, self.past.pk))
 
-        qs = events.for_period(from_date=date(2015, 1, 1))
+        qs = events.for_period(from_date=date(2015, 1, 1), exact=True)
         self.assertEqual(qs.count(), 2)
 
-        qs = events.for_period(to_date=date(2010, 1, 1))
+        qs = events.for_period(to_date=date(2010, 1, 1), exact=True)
         self.assertEqual(qs.get(), self.christmas)
 
         qs = events.for_period(from_date=date(2017, 1, 1),
-                               to_date=date(2017, 12, 31),)
+                               to_date=date(2017, 12, 31),
+                               exact=True)
         self.assertEqual(qs.get(), self.christmas)
 
     def test_occurrence_data(self):
