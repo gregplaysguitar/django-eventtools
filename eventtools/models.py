@@ -281,7 +281,7 @@ class BaseOccurrence(BaseModel):
 
             if from_date or to_date:
                 repeater = repeater.between(
-                    from_date or datetime(0, 0, 0, 0, 0),
+                    from_date or datetime(1, 1, 1, 0, 0),
                     to_date or datetime(9999, 12, 31, 23, 59),
                 )
 
