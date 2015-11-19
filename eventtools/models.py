@@ -291,7 +291,7 @@ class BaseOccurrence(BaseModel):
 
             if self.repeat_until and (
                     not to_date or
-                    as_datetime(self.repeat_until, True) > to_date):
+                    as_datetime(self.repeat_until, True) < to_date):
                 to_date = as_datetime(self.repeat_until, True)
 
             if from_date or to_date:

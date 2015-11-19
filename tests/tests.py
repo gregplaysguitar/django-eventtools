@@ -49,6 +49,14 @@ class EventToolsTestCase(TestCase):
             start=datetime(2016, 1, 1, 7, 0),
             end=datetime(2016, 1, 1, 8, 0))
 
+        self.monthly = Event.objects.create(title='Monthly until Dec 2017')
+        Occurrence.objects.create(
+            event=self.monthly,
+            start=datetime(2016, 1, 1, 7, 0),
+            end=datetime(2016, 1, 1, 8, 0),
+            repeat=rrule.MONTHLY,
+            repeat_until=date(2017, 12, 31))
+
         # fake "today" so tests always work
         self.today = date(2015, 6, 1)
         self.first_of_year = date(2015, 1, 1)
@@ -221,3 +229,9 @@ class EventToolsTestCase(TestCase):
     def test_occurrence_data(self):
         occ = self.christmas.occurrence_set.get()
         self.assertEqual(occ.next_occurrence()[2], occ.occurrence_data)
+
+    def test_repeat_until(self):
+        # check repeating event when to_date is less than repeat_until
+        occs = self.monthly.all_occurrences(from_date=date(2016, 4, 1),
+                                            to_date=date(2016, 4, 30))
+        self.assertEqual(len(list(occs)), 1)
