@@ -295,6 +295,11 @@ class BaseOccurrence(BaseModel):
                 to_date = as_datetime(self.repeat_until, True)
 
             if from_date or to_date:
+                # start is used for the filter, so modify from_date to take the
+                # occurrence length into account
+                if from_date:
+                    from_date -= (self.end - self.start)
+
                 repeater = repeater.between(
                     from_date or datetime(1, 1, 1, 0, 0),
                     to_date or datetime(9999, 12, 31, 23, 59),

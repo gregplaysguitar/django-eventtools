@@ -83,9 +83,38 @@ class EventToolsTestCase(TestCase):
             to_date=datetime(2015, 12, 25, 23, 0, 0), ))
         self.assertEqual(len(dates), 1)
 
+        # date range intersecting with occurrence time
         dates = list(occ.all_occurrences(
             from_date=datetime(2015, 12, 25, 10, 0, 0),
             to_date=datetime(2015, 12, 25, 23, 0, 0), ))
+        self.assertEqual(len(dates), 1)
+        dates = list(occ.all_occurrences(
+            from_date=datetime(2015, 12, 25, 6, 0, 0),
+            to_date=datetime(2015, 12, 25, 10, 0, 0), ))
+        self.assertEqual(len(dates), 1)
+
+        # date range within occurrence time
+        dates = list(occ.all_occurrences(
+            from_date=datetime(2015, 12, 25, 12, 0, 0),
+            to_date=datetime(2015, 12, 25, 13, 0, 0), ))
+        self.assertEqual(len(dates), 1)
+
+        # date range outside occurrence time
+        dates = list(occ.all_occurrences(
+            from_date=datetime(2015, 12, 24, 12, 0, 0),
+            to_date=datetime(2015, 12, 26, 13, 0, 0), ))
+        self.assertEqual(len(dates), 1)
+
+        # date range before occurrence time
+        dates = list(occ.all_occurrences(
+            from_date=datetime(2015, 12, 24, 12, 0, 0),
+            to_date=datetime(2015, 12, 24, 13, 0, 0), ))
+        self.assertEqual(len(dates), 0)
+
+        # date range after occurrence time
+        dates = list(occ.all_occurrences(
+            from_date=datetime(2015, 12, 25, 23, 0, 0),
+            to_date=datetime(2015, 12, 25, 23, 30, 0), ))
         self.assertEqual(len(dates), 0)
 
         # check next_occurence method for non-repeating occurrences
