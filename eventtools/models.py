@@ -298,6 +298,7 @@ class BaseOccurrence(BaseModel):
                 repeater = repeater.between(
                     from_date or datetime(1, 1, 1, 0, 0),
                     to_date or datetime(9999, 12, 31, 23, 59),
+                    inc=True
                 )
 
             for occ_start in repeater:
