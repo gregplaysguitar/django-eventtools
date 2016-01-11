@@ -88,7 +88,7 @@ def filter_invalid(approx_qs, from_date, to_date):
 class BaseQuerySet(models.QuerySet):
     """Base QuerySet for models which have occurrences. """
 
-    def for_period(self, from_date=None, to_date=None):
+    def for_period(self, from_date=None, to_date=None, exact=False):
         # subclasses should implement this
         raise NotImplementedError()
 
@@ -303,6 +303,7 @@ class BaseOccurrence(BaseModel):
                 repeater = repeater.between(
                     from_date or datetime(1, 1, 1, 0, 0),
                     to_date or datetime(9999, 12, 31, 23, 59),
+                    inc=True
                 )
 
             for occ_start in repeater:
