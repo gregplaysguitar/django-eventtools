@@ -44,12 +44,12 @@ Create a sample event & occurrences
             event=event,
             start=datetime(2015, 12, 25, 7, 0),
             end=datetime(2015, 12, 25, 22, 0),
-            repeat.rrule.YEARLY)
+            repeat=rrule.YEARLY)
     >>> daily = Occurrence.objects.create(
             event=event,
             start=datetime(2016, 1, 1, 7, 0),
             end=datetime(2016, 1, 1, 8, 0),
-            repeat.rrule.DAILY)
+            repeat=rrule.DAILY)
 
 `Event` and `Occurrence` instances, and their associated querysets, all support
 the `all_occurrences` method, which takes two optional arguments - `from_date`
