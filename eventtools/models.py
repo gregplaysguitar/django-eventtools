@@ -281,7 +281,7 @@ class BaseOccurrence(BaseModel):
         to_date = to_date and as_datetime(to_date, True)
 
         if self.repeat is None:  # might be 0
-            if (not from_date or self.start >= from_date) and \
+            if (not from_date or self.end >= from_date) and \
                (not to_date or self.start <= to_date):
                 yield (self.start, self.end, self.occurrence_data)
         else:

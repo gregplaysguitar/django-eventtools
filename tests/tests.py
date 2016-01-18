@@ -264,3 +264,15 @@ class EventToolsTestCase(TestCase):
         occs = self.monthly.all_occurrences(from_date=date(2016, 4, 1),
                                             to_date=date(2016, 4, 30))
         self.assertEqual(len(list(occs)), 1)
+
+    def test_non_repeating_intersection(self):
+        occ = self.past.occurrence_set.get()
+
+        dates = list(occ.all_occurrences(
+            from_date=datetime(2014, 1, 1, 7, 30),
+            to_date=datetime(2014, 1, 1, 8, 30)))
+        self.assertEqual(len(dates), 1)
+        dates = list(occ.all_occurrences(
+            from_date=datetime(2014, 1, 1, 6, 30),
+            to_date=datetime(2014, 1, 1, 7, 30)))
+        self.assertEqual(len(dates), 1)
