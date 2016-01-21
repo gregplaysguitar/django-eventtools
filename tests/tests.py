@@ -14,7 +14,7 @@ class EventToolsTestCase(TestCase):
             event=self.christmas,
             start=datetime(2000, 12, 25, 7, 0),
             end=datetime(2000, 12, 25, 22, 0),
-            repeat=rrule.YEARLY)
+            repeat="RRULE:FREQ=YEARLY")
 
         self.weekends = Event.objects.create(title='Weekends 9-10am')
         # Saturday
@@ -22,20 +22,20 @@ class EventToolsTestCase(TestCase):
             event=self.weekends,
             start=datetime(2015, 1, 3, 9, 0),
             end=datetime(2015, 1, 3, 10, 0),
-            repeat=rrule.WEEKLY)
+            repeat="RRULE:FREQ=WEEKLY")
         # Sunday
         Occurrence.objects.create(
             event=self.weekends,
             start=datetime(2015, 1, 4, 9, 0),
             end=datetime(2015, 1, 4, 10, 0),
-            repeat=rrule.WEEKLY)
+            repeat="RRULE:FREQ=WEEKLY")
 
         self.daily = Event.objects.create(title='Daily 7-8am')
         Occurrence.objects.create(
             event=self.daily,
             start=datetime(2015, 1, 1, 7, 0),
             end=datetime(2015, 1, 1, 8, 0),
-            repeat=rrule.DAILY)
+            repeat="RRULE:FREQ=DAILY")
 
         self.past = Event.objects.create(title='Past event')
         Occurrence.objects.create(
@@ -54,7 +54,7 @@ class EventToolsTestCase(TestCase):
             event=self.monthly,
             start=datetime(2016, 1, 1, 7, 0),
             end=datetime(2016, 1, 1, 8, 0),
-            repeat=rrule.MONTHLY,
+            repeat="RRULE:FREQ=MONTHLY",
             repeat_until=date(2017, 12, 31))
 
         # fake "today" so tests always work
@@ -276,3 +276,35 @@ class EventToolsTestCase(TestCase):
             from_date=datetime(2014, 1, 1, 6, 30),
             to_date=datetime(2014, 1, 1, 7, 30)))
         self.assertEqual(len(dates), 1)
+
+    def test_integer_rules_can_be_migrated(self):
+        yearly = Occurrence.objects.create(
+            event=self.christmas,
+            start=datetime(2000, 12, 25, 7, 0),
+            end=datetime(2000, 12, 25, 22, 0),
+            repeat=rrule.YEARLY)
+        monthly = Occurrence.objects.create(
+            event=self.past,
+            start=datetime(2014, 1, 1, 7, 0),
+            end=datetime(2014, 1, 1, 8, 0),
+            repeat=rrule.MONTHLY)
+        weekly = Occurrence.objects.create(
+            event=self.weekends,
+            start=datetime(2015, 1, 4, 9, 0),
+            end=datetime(2015, 1, 4, 10, 0),
+            repeat=rrule.WEEKLY)
+        daily = Occurrence.objects.create(
+            event=self.daily,
+            start=datetime(2015, 1, 1, 7, 0),
+            end=datetime(2015, 1, 1, 8, 0),
+            repeat=rrule.DAILY)
+
+        Occurrence.objects.migrate_integer_repeat()
+        yearly.refresh_from_db()
+        self.assertEqual(yearly.repeat, 'RRULE:FREQ=YEARLY')
+        monthly.refresh_from_db()
+        self.assertEqual(monthly.repeat, 'RRULE:FREQ=MONTHLY')
+        weekly.refresh_from_db()
+        self.assertEqual(weekly.repeat, 'RRULE:FREQ=WEEKLY')
+        daily.refresh_from_db()
+        self.assertEqual(daily.repeat, 'RRULE:FREQ=DAILY')
