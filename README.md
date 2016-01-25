@@ -2,7 +2,7 @@ django-eventtools is a lightweight library designed to handle repeating and
 one-off event occurrences for display on a website.
 
 [![Circle CI](https://circleci.com/gh/gregplaysguitar/django-eventtools.svg?style=svg)](https://circleci.com/gh/gregplaysguitar/django-eventtools)
-[![Latest Version](https://img.shields.io/pypi/v/django-eventools.svg?style=flat)](https://pypi.python.org/pypi/django-eventtools/)
+[![Latest Version](https://img.shields.io/pypi/v/django-eventtools.svg?style=flat)](https://pypi.python.org/pypi/django-eventtools/)
 
 
 ## Installation
