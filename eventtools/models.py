@@ -4,7 +4,7 @@ from dateutil import rrule
 from datetime import timedelta, date, datetime
 
 from django.db import models
-from django.db.models import Q
+from django.db.models import Q, Case, When, Value
 from django.core.exceptions import ValidationError
 
 
@@ -230,6 +230,19 @@ class OccurrenceQuerySet(BaseQuerySet):
 class OccurrenceManager(models.Manager.from_queryset(OccurrenceQuerySet)):
     use_for_related_fields = True
 
+    def migrate_integer_repeat(self):
+        self.update(repeat=Case(
+                When(repeat=rrule.YEARLY,
+                     then=Value("RRULE:FREQ=YEARLY")),
+                When(repeat=rrule.MONTHLY,
+                     then=Value("RRULE:FREQ=MONTHLY")),
+                When(repeat=rrule.WEEKLY,
+                     then=Value("RRULE:FREQ=WEEKLY")),
+                When(repeat=rrule.DAILY,
+                     then=Value("RRULE:FREQ=DAILY")),
+                default=None
+        ))
+
 
 class BaseOccurrence(BaseModel):
     """Abstract model providing occurrence-related methods for occurrences.
@@ -243,17 +256,16 @@ class BaseOccurrence(BaseModel):
     REPEAT_MAX = 200
 
     REPEAT_CHOICES = (
-        (rrule.DAILY, 'Daily'),
-        (rrule.WEEKLY, 'Weekly'),
-        (rrule.MONTHLY, 'Monthly'),
-        (rrule.YEARLY, 'Yearly'),
+        ("RRULE:FREQ=DAILY", 'Daily'),
+        ("RRULE:FREQ=WEEKLY", 'Weekly'),
+        ("RRULE:FREQ=MONTHLY", 'Monthly'),
+        ("RRULE:FREQ=YEARLY", 'Yearly'),
     )
 
     start = models.DateTimeField(db_index=True)
     end = models.DateTimeField(db_index=True)
 
-    repeat = models.PositiveSmallIntegerField(choices=REPEAT_CHOICES,
-                                              null=True, blank=True)
+    repeat = models.TextField(choices=REPEAT_CHOICES, null=True, blank=True)
     repeat_until = models.DateField(null=True, blank=True)
 
     def clean(self):
@@ -286,8 +298,7 @@ class BaseOccurrence(BaseModel):
                 yield (self.start, self.end, self.occurrence_data)
         else:
             delta = self.end - self.start
-            repeater = rrule.rrule(self.repeat, dtstart=self.start,
-                                   count=self.REPEAT_MAX)
+            repeater = self.get_repeater()
 
             if self.repeat_until and (
                     not to_date or
@@ -308,6 +319,24 @@ class BaseOccurrence(BaseModel):
 
             for occ_start in repeater:
                 yield (occ_start, occ_start + delta, self.occurrence_data)
+
+    def get_repeater(self):
+        # Timings to get all_occurrences() for a set of 2500 Occurrence objects with rrule.DAILY repeat
+        # Without method call (inline repeat)
+        # CPU times: user 53.4 s, sys: 76 ms, total: 53.4 s
+        # Wall time: 55.8 s
+
+        # With method call
+        # CPU times: user 53.5 s, sys: 100 ms, total: 53.6 s
+        # Wall time: 56 s
+        # The subclassing benefit seems much larger than the performance hit
+
+        # rrulestr does not accept the count argument; readding it after creation
+        # to maintain compatibility
+        repeater = rrule.rrulestr(self.repeat, dtstart=self.start)
+        repeater._count = repeater._count or self.REPEAT_MAX
+        return repeater
+
 
     class Meta:
         ordering = ('start', 'end')
