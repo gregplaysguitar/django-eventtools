@@ -115,9 +115,3 @@ Assuming virtualenvwrapper is installed:
     > ./runtests.py
 
 
-## Todo
-
-✔ Handle from_date more efficiently in BaseOccurrence.all_occurrences
-- Test for_period methods with exact=False
-- Python 3 tests (tox)
-- Docs
