@@ -107,11 +107,8 @@ The result will be appended to the occurrence tuple, i.e. `(start, end, data)`
 
 ## Running tests
 
-Assuming virtualenvwrapper is installed:
+Use tox (<https://pypi.python.org/pypi/tox>):
 
+    > pip install tox
     > cd path-to/django-eventtools
-    > mkvirtualenv test
-    > ./setup.py install
-    > ./runtests.py
-
-
+    > tox
