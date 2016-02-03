@@ -1,11 +1,21 @@
 # -*- coding: utf-8 -*-
 
 from dateutil import rrule
-from datetime import timedelta, date, datetime
+from datetime import date, datetime
 
+from django.conf import settings
 from django.db import models
 from django.db.models import Q, Case, When, Value
 from django.core.exceptions import ValidationError
+
+
+# set EVENTTOOLS_REPEAT_CHOICES = None to make this a plain textfield
+REPEAT_CHOICES = getattr(settings, 'EVENTTOOLS_REPEAT_CHOICES', (
+    ("RRULE:FREQ=DAILY", 'Daily'),
+    ("RRULE:FREQ=WEEKLY", 'Weekly'),
+    ("RRULE:FREQ=MONTHLY", 'Monthly'),
+    ("RRULE:FREQ=YEARLY", 'Yearly'),
+))
 
 
 def first_item(gen):
@@ -232,16 +242,27 @@ class OccurrenceManager(models.Manager.from_queryset(OccurrenceQuerySet)):
 
     def migrate_integer_repeat(self):
         self.update(repeat=Case(
-                When(repeat=rrule.YEARLY,
-                     then=Value("RRULE:FREQ=YEARLY")),
-                When(repeat=rrule.MONTHLY,
-                     then=Value("RRULE:FREQ=MONTHLY")),
-                When(repeat=rrule.WEEKLY,
-                     then=Value("RRULE:FREQ=WEEKLY")),
-                When(repeat=rrule.DAILY,
-                     then=Value("RRULE:FREQ=DAILY")),
-                default=None
+            When(repeat=rrule.YEARLY,
+                 then=Value("RRULE:FREQ=YEARLY")),
+            When(repeat=rrule.MONTHLY,
+                 then=Value("RRULE:FREQ=MONTHLY")),
+            When(repeat=rrule.WEEKLY,
+                 then=Value("RRULE:FREQ=WEEKLY")),
+            When(repeat=rrule.DAILY,
+                 then=Value("RRULE:FREQ=DAILY")),
+            default=None
         ))
+
+
+class ChoiceTextField(models.TextField):
+    """Textfield which uses a Select widget if it has choices specified. """
+
+    def formfield(self, **kwargs):
+        if self.choices:
+            # this overrides the TextField's preference for a Textarea widget,
+            # allowing the ModelForm to decide which field to use
+            kwargs['widget'] = None
+        return super(ChoiceTextField, self).formfield(**kwargs)
 
 
 class BaseOccurrence(BaseModel):
@@ -255,17 +276,10 @@ class BaseOccurrence(BaseModel):
 
     REPEAT_MAX = 200
 
-    REPEAT_CHOICES = (
-        ("RRULE:FREQ=DAILY", 'Daily'),
-        ("RRULE:FREQ=WEEKLY", 'Weekly'),
-        ("RRULE:FREQ=MONTHLY", 'Monthly'),
-        ("RRULE:FREQ=YEARLY", 'Yearly'),
-    )
-
     start = models.DateTimeField(db_index=True)
     end = models.DateTimeField(db_index=True)
 
-    repeat = models.TextField(choices=REPEAT_CHOICES, null=True, blank=True)
+    repeat = ChoiceTextField(choices=REPEAT_CHOICES, default='', blank=True)
     repeat_until = models.DateField(null=True, blank=True)
 
     def clean(self):
@@ -321,7 +335,8 @@ class BaseOccurrence(BaseModel):
                 yield (occ_start, occ_start + delta, self.occurrence_data)
 
     def get_repeater(self):
-        # Timings to get all_occurrences() for a set of 2500 Occurrence objects with rrule.DAILY repeat
+        # Timings to get all_occurrences() for a set of 2500 Occurrence objects
+        # with rrule.DAILY repeat
         # Without method call (inline repeat)
         # CPU times: user 53.4 s, sys: 76 ms, total: 53.4 s
         # Wall time: 55.8 s
@@ -331,12 +346,11 @@ class BaseOccurrence(BaseModel):
         # Wall time: 56 s
         # The subclassing benefit seems much larger than the performance hit
 
-        # rrulestr does not accept the count argument; readding it after creation
-        # to maintain compatibility
+        # rrulestr does not accept the count argument; readding it after
+        # creation to maintain compatibility
         repeater = rrule.rrulestr(self.repeat, dtstart=self.start)
         repeater._count = repeater._count or self.REPEAT_MAX
         return repeater
-
 
     class Meta:
         ordering = ('start', 'end')
