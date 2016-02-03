@@ -244,6 +244,17 @@ class OccurrenceManager(models.Manager.from_queryset(OccurrenceQuerySet)):
         ))
 
 
+class ChoiceTextField(models.TextField):
+    """Textfield which uses a Select widget if it has choices specified. """
+
+    def formfield(self, **kwargs):
+        if self.choices:
+            # this overrides the TextField's preference for a Textarea widget,
+            # allowing the ModelForm to decide which field to use
+            kwargs['widget'] = None
+        return super(ChoiceTextField, self).formfield(**kwargs)
+
+
 class BaseOccurrence(BaseModel):
     """Abstract model providing occurrence-related methods for occurrences.
 
@@ -265,7 +276,7 @@ class BaseOccurrence(BaseModel):
     start = models.DateTimeField(db_index=True)
     end = models.DateTimeField(db_index=True)
 
-    repeat = models.TextField(choices=REPEAT_CHOICES, default='', blank=True)
+    repeat = ChoiceTextField(choices=REPEAT_CHOICES, default='', blank=True)
     repeat_until = models.DateField(null=True, blank=True)
 
     def clean(self):
