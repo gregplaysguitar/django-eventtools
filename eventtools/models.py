@@ -250,7 +250,7 @@ class OccurrenceManager(models.Manager.from_queryset(OccurrenceQuerySet)):
                  then=Value("RRULE:FREQ=WEEKLY")),
             When(repeat=rrule.DAILY,
                  then=Value("RRULE:FREQ=DAILY")),
-            default=None
+            default=Value(""),
         ))
 
 
@@ -306,7 +306,7 @@ class BaseOccurrence(BaseModel):
         from_date = from_date and as_datetime(from_date)
         to_date = to_date and as_datetime(to_date, True)
 
-        if self.repeat is None:  # might be 0
+        if not self.repeat:
             if (not from_date or self.end >= from_date) and \
                (not to_date or self.start <= to_date):
                 yield (self.start, self.end, self.occurrence_data)
