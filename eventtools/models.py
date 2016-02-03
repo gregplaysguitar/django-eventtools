@@ -3,9 +3,19 @@
 from dateutil import rrule
 from datetime import date, datetime
 
+from django.conf import settings
 from django.db import models
 from django.db.models import Q, Case, When, Value
 from django.core.exceptions import ValidationError
+
+
+# set EVENTTOOLS_REPEAT_CHOICES = None to make this a plain textfield
+REPEAT_CHOICES = getattr(settings, 'EVENTTOOLS_REPEAT_CHOICES', (
+    ("RRULE:FREQ=DAILY", 'Daily'),
+    ("RRULE:FREQ=WEEKLY", 'Weekly'),
+    ("RRULE:FREQ=MONTHLY", 'Monthly'),
+    ("RRULE:FREQ=YEARLY", 'Yearly'),
+))
 
 
 def first_item(gen):
@@ -265,13 +275,6 @@ class BaseOccurrence(BaseModel):
     occurrence_data = None
 
     REPEAT_MAX = 200
-
-    REPEAT_CHOICES = (
-        ("RRULE:FREQ=DAILY", 'Daily'),
-        ("RRULE:FREQ=WEEKLY", 'Weekly'),
-        ("RRULE:FREQ=MONTHLY", 'Monthly'),
-        ("RRULE:FREQ=YEARLY", 'Yearly'),
-    )
 
     start = models.DateTimeField(db_index=True)
     end = models.DateTimeField(db_index=True)
