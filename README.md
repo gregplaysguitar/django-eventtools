@@ -76,16 +76,29 @@ but returning a single occurrence tuple.
 
 ### Queryset filtering
 
-Querysets can also be filtered, but due to uncertainty with repetitions,
-from_date filtering is only an approximation (to_date filtering is accurate).
-If you need a queryset filtered exactly, pass `exact=True` - this will filter
-using occurrences but still return a queryset - but be careful with this as it
-may be very slow. For example
+Event and Occurrence querysets can be filtered, but due to uncertainty 
+with repetitions, `from_date` filtering is only an approximation (whereas 
+`to_date` filtering is accurate). If you need a queryset filtered exactly, 
+pass `exact=True` - this will filter using generated occurrences but still
+return a queryset - but be careful with this as it may be very slow and/or 
+CPU-hungry. For example
 
     >>> Event.objects.for_period(from_date=date(2015, 1, 1),
                                  to_date=date(2015, 12, 31))
     >>> event.occurrence_set.for_period(from_date=date(2015, 1, 1), exact=True)
 
+### Sorting querysets
+
+Event and Occurrence querysets can also be sorted by their next occurrence
+using the `sort_by_next` method. By default this sorts instances by their 
+first occurrence; the optional `from_date` argument will sort by the next
+occurrence after `from_date`. For example
+
+    >>> Event.objects.all().sort_by_next()
+    >>> event.occurrence_set.for_period(from_date=date(2015, 1, 1)) \
+    >>>      .sort_by_next(date(2015, 1, 1))
+
+Note that this method returns a sorted list, not a queryset.
 
 ### Adding additional data to occurrence tuples
 
