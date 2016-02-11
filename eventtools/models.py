@@ -349,7 +349,7 @@ class BaseOccurrence(BaseModel):
         # rrulestr does not accept the count argument; readding it after
         # creation to maintain compatibility
         repeater = rrule.rrulestr(self.repeat, dtstart=self.start)
-        repeater._count = repeater._count or self.REPEAT_MAX
+        repeater._count = getattr(repeater, '_count', None) or self.REPEAT_MAX
         return repeater
 
     class Meta:
