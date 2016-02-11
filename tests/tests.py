@@ -308,3 +308,14 @@ class EventToolsTestCase(TestCase):
         self.assertEqual(weekly.repeat, 'RRULE:FREQ=WEEKLY')
         daily.refresh_from_db()
         self.assertEqual(daily.repeat, 'RRULE:FREQ=DAILY')
+
+    def test_rruleset_is_handled(self):
+        occ = Occurrence.objects.create(
+            event=self.weekends,
+            start=datetime(2015, 1, 4, 9, 0),
+            end=datetime(2015, 1, 4, 10, 0),
+            repeat="EXDATE:20150629T170000,20150727T170000,20150831T170000,20151130T170000,20151228T170000\n"
+                   "RRULE:FREQ=MONTHLY;COUNT=35;BYDAY=-1MO")
+        occs = occ.all_occurrences(from_date=date(2015, 1, 1),
+                                   to_date=date(2015, 12, 1))
+        self.assertEqual(len(list(occs)), 11)
