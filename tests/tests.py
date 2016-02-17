@@ -3,6 +3,8 @@ from dateutil import rrule
 from dateutil.relativedelta import relativedelta
 
 from django.test import TestCase
+from eventtools.models import REPEAT_MAX
+
 from .models import Event, Occurrence
 
 
@@ -264,6 +266,17 @@ class EventToolsTestCase(TestCase):
         occs = self.monthly.all_occurrences(from_date=date(2016, 4, 1),
                                             to_date=date(2016, 4, 30))
         self.assertEqual(len(list(occs)), 1)
+
+    def test_occurrence_limit(self):
+        test_objs = [
+            self.daily,
+            Event.objects.filter(pk=self.daily.pk),
+            self.daily.occurrence_set.all(),
+            self.daily.occurrence_set.get(),
+        ]
+        for obj in test_objs:
+            self.assertEqual(len(list(obj.all_occurrences(limit=20))), 20)
+            self.assertEqual(len(list(obj.all_occurrences())), REPEAT_MAX)
 
     def test_non_repeating_intersection(self):
         occ = self.past.occurrence_set.get()

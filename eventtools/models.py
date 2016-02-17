@@ -16,6 +16,7 @@ REPEAT_CHOICES = getattr(settings, 'EVENTTOOLS_REPEAT_CHOICES', (
     ("RRULE:FREQ=MONTHLY", 'Monthly'),
     ("RRULE:FREQ=YEARLY", 'Yearly'),
 ))
+REPEAT_MAX = 200
 
 
 def first_item(gen):
@@ -274,8 +275,6 @@ class BaseOccurrence(BaseModel):
     # override this in subclasses
     occurrence_data = None
 
-    REPEAT_MAX = 200
-
     start = models.DateTimeField(db_index=True)
     end = models.DateTimeField(db_index=True)
 
@@ -299,7 +298,7 @@ class BaseOccurrence(BaseModel):
 
     objects = OccurrenceManager()
 
-    def all_occurrences(self, from_date=None, to_date=None):
+    def all_occurrences(self, from_date=None, to_date=None, limit=REPEAT_MAX):
         """Return a generator yielding a (start, end) tuple for all dates
            for this occurrence, taking repetition into account. """
 
@@ -331,7 +330,12 @@ class BaseOccurrence(BaseModel):
                     inc=True
                 )
 
+            count = 0
             for occ_start in repeater:
+                count += 1
+                if count > limit:
+                    return
+
                 yield (occ_start, occ_start + delta, self.occurrence_data)
 
     def get_repeater(self):
@@ -345,12 +349,7 @@ class BaseOccurrence(BaseModel):
         # CPU times: user 53.5 s, sys: 100 ms, total: 53.6 s
         # Wall time: 56 s
         # The subclassing benefit seems much larger than the performance hit
-
-        # rrulestr does not accept the count argument; readding it after
-        # creation to maintain compatibility
-        repeater = rrule.rrulestr(self.repeat, dtstart=self.start)
-        repeater._count = repeater._count or self.REPEAT_MAX
-        return repeater
+        return rrule.rrulestr(self.repeat, dtstart=self.start)
 
     class Meta:
         ordering = ('start', 'end')
