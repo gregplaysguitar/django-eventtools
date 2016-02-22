@@ -141,7 +141,7 @@ class BaseModel(models.Model):
         """Return next occurrence as a (start, end) tuple for this instance,
            between from_date and to_date, taking repetition into account. """
         if not from_date:
-            from_date = datetime.now()
+            from_date = datetime.now(TIMEZONE)
         return first_item(
             self.all_occurrences(from_date=from_date, to_date=to_date))
 
