@@ -19,6 +19,9 @@ REPEAT_CHOICES = getattr(settings, 'EVENTTOOLS_REPEAT_CHOICES', (
 REPEAT_MAX = 200
 
 
+TIMEZONE = get_default_timezone()
+
+
 def first_item(gen):
     try:
         return next(gen)
@@ -39,7 +42,9 @@ def as_datetime(d, end=False):
         else:
             time_args = (0, 0, 0)
         new_value = datetime(*(date_args + time_args))
-        return get_default_timezone().localize(new_value)
+        if TIMEZONE:
+            return get_default_timezone().localize(new_value)
+        return new_value
     # otherwise assume it's a datetime
     return d
 
@@ -326,8 +331,8 @@ class BaseOccurrence(BaseModel):
                     from_date -= (self.end - self.start)
 
                 repeater = repeater.between(
-                    from_date or datetime(1, 1, 1, 0, 0),
-                    to_date or datetime(9999, 12, 31, 23, 59),
+                    from_date or datetime(1, 1, 1, 0, 0, tzinfo=TIMEZONE),
+                    to_date or datetime(9999, 12, 31, 23, 59, tzinfo=TIMEZONE),
                     inc=True
                 )
 
