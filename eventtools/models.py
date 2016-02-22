@@ -7,7 +7,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q, Case, When, Value
 from django.core.exceptions import ValidationError
-
+from django.utils.timezone import get_default_timezone
 
 # set EVENTTOOLS_REPEAT_CHOICES = None to make this a plain textfield
 REPEAT_CHOICES = getattr(settings, 'EVENTTOOLS_REPEAT_CHOICES', (
@@ -38,7 +38,8 @@ def as_datetime(d, end=False):
             time_args = (23, 59, 59)
         else:
             time_args = (0, 0, 0)
-        return datetime(*(date_args + time_args))
+        new_value = datetime(*(date_args + time_args))
+        return get_default_timezone().localize(new_value)
     # otherwise assume it's a datetime
     return d
 
