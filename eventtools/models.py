@@ -7,6 +7,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q, Case, When, Value
 from django.core.exceptions import ValidationError
+from django.utils.timezone import get_default_timezone
 
 
 # set EVENTTOOLS_REPEAT_CHOICES = None to make this a plain textfield
@@ -17,6 +18,13 @@ REPEAT_CHOICES = getattr(settings, 'EVENTTOOLS_REPEAT_CHOICES', (
     ("RRULE:FREQ=YEARLY", 'Yearly'),
 ))
 REPEAT_MAX = 200
+
+
+USE_TZ = settings.USE_TZ
+if USE_TZ:
+    TIMEZONE = get_default_timezone()
+else:
+    TIMEZONE = None
 
 
 def first_item(gen):
@@ -38,7 +46,9 @@ def as_datetime(d, end=False):
             time_args = (23, 59, 59)
         else:
             time_args = (0, 0, 0)
-        return datetime(*(date_args + time_args))
+        new_value = datetime(*(date_args + time_args))
+        new_value.replace(tzinfo=get_default_timezone())
+        return new_value
     # otherwise assume it's a datetime
     return d
 
@@ -135,7 +145,7 @@ class BaseModel(models.Model):
         """Return next occurrence as a (start, end) tuple for this instance,
            between from_date and to_date, taking repetition into account. """
         if not from_date:
-            from_date = datetime.now()
+            from_date = datetime.now(TIMEZONE)
         return first_item(
             self.all_occurrences(from_date=from_date, to_date=to_date))
 
@@ -325,8 +335,8 @@ class BaseOccurrence(BaseModel):
                     from_date -= (self.end - self.start)
 
                 repeater = repeater.between(
-                    from_date or datetime(1, 1, 1, 0, 0),
-                    to_date or datetime(9999, 12, 31, 23, 59),
+                    from_date or datetime(1, 1, 1, 0, 0, tzinfo=TIMEZONE),
+                    to_date or datetime(9999, 12, 31, 23, 59, tzinfo=TIMEZONE),
                     inc=True
                 )
 
