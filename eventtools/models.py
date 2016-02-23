@@ -19,8 +19,11 @@ REPEAT_CHOICES = getattr(settings, 'EVENTTOOLS_REPEAT_CHOICES', (
 REPEAT_MAX = 200
 
 
-TIMEZONE = get_default_timezone()
-
+USE_TZ = settings.USE_TZ
+if USE_TZ:
+    TIMEZONE = get_default_timezone()
+else:
+    TIMEZONE = None
 
 def first_item(gen):
     try:
@@ -42,8 +45,7 @@ def as_datetime(d, end=False):
         else:
             time_args = (0, 0, 0)
         new_value = datetime(*(date_args + time_args))
-        if TIMEZONE:
-            return get_default_timezone().localize(new_value)
+        new_value.replace(tzinfo=get_default_timezone())
         return new_value
     # otherwise assume it's a datetime
     return d

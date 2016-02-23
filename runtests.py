@@ -12,4 +12,11 @@ if __name__ == "__main__":
     TestRunner = get_runner(settings)
     test_runner = TestRunner()
     failures = test_runner.run_tests(["tests"])
-    sys.exit(bool(failures))
+    # And now with Django timezone support active
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'tests.test_settings_tz'
+    django.setup()
+    TestRunner = get_runner(settings)
+    test_runner = TestRunner()
+    failures_tz = test_runner.run_tests(["tests"])
+    # Return failures
+    sys.exit(bool(failures) and bool(failures_tz))
