@@ -9,6 +9,7 @@ from django.db.models import Q, Case, When, Value
 from django.core.exceptions import ValidationError
 from django.utils.timezone import get_default_timezone
 
+
 # set EVENTTOOLS_REPEAT_CHOICES = None to make this a plain textfield
 REPEAT_CHOICES = getattr(settings, 'EVENTTOOLS_REPEAT_CHOICES', (
     ("RRULE:FREQ=DAILY", 'Daily'),
@@ -24,6 +25,7 @@ if USE_TZ:
     TIMEZONE = get_default_timezone()
 else:
     TIMEZONE = None
+
 
 def first_item(gen):
     try:
