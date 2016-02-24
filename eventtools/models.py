@@ -47,7 +47,7 @@ def as_datetime(d, end=False):
         else:
             time_args = (0, 0, 0)
         new_value = datetime(*(date_args + time_args))
-        new_value.replace(tzinfo=get_default_timezone())
+        new_value = new_value.replace(tzinfo=TIMEZONE)
         return new_value
     # otherwise assume it's a datetime
     return d
