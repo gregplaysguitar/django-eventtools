@@ -149,6 +149,11 @@ class BaseModel(models.Model):
         return first_item(
             self.all_occurrences(from_date=from_date, to_date=to_date))
 
+    def first_occurrence(self):
+        """Return first occurrence as a (start, end) tuple for this instance.
+        """
+        return first_item(self.all_occurrences())
+
     class Meta:
         abstract = True
 
