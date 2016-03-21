@@ -3,6 +3,8 @@ from dateutil import rrule
 from dateutil.relativedelta import relativedelta
 
 from django.test import TestCase, override_settings
+from django.utils.timezone import get_default_timezone
+from django.conf import settings
 from eventtools.models import REPEAT_MAX
 
 from .models import Event, Occurrence
@@ -85,6 +87,14 @@ class EventToolsTestCase(TestCase):
             to_date=datetime(2015, 12, 25, 23, 0, 0), ))
         self.assertEqual(len(dates), 1)
 
+        # using tz-aware datetime() arguments, if appropriate
+        if settings.USE_TZ:
+            tz = get_default_timezone()
+            dates = list(occ.all_occurrences(
+                from_date=datetime(2015, 12, 25, 6, 0, 0, 0, tz),
+                to_date=datetime(2015, 12, 25, 23, 0, 0, 0, tz), ))
+            self.assertEqual(len(dates), 1)
+
         # date range intersecting with occurrence time
         dates = list(occ.all_occurrences(
             from_date=datetime(2015, 12, 25, 10, 0, 0),
@@ -126,7 +136,8 @@ class EventToolsTestCase(TestCase):
 
         occ = self.future.occurrence_set.get() \
                   .next_occurrence(from_date=self.today)
-        self.assertEqual(occ[0], datetime(2016, 1, 1, 7, 0))
+        self.assertEqual(occ[0].timetuple()[:5],
+                         datetime(2016, 1, 1, 7, 0).timetuple()[:5])
 
         # and for repeating
         occ = self.daily.occurrence_set.get() \
