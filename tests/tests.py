@@ -2,7 +2,7 @@ from datetime import datetime, date, timedelta
 from dateutil import rrule
 from dateutil.relativedelta import relativedelta
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from eventtools.models import REPEAT_MAX
 
 from .models import Event, Occurrence
@@ -133,6 +133,10 @@ class EventToolsTestCase(TestCase):
                   .next_occurrence(from_date=self.today)
         self.assertEqual(occ[0].date(), self.today)
 
+    @override_settings(USE_TZ=True)
+    def test_single_occurrence_tz(self):
+        self.test_single_occurrence()
+
     def test_occurrence_qs(self):
         events = [self.christmas, self.past, self.future]
         occs = Occurrence.objects.filter(event__in=events)
@@ -160,6 +164,10 @@ class EventToolsTestCase(TestCase):
                              to_date=date(2017, 12, 31),
                              exact=True)
         self.assertEqual(qs.get().event, self.christmas)
+
+    @override_settings(USE_TZ=True)
+    def test_occurrence_qs_tz(self):
+        self.test_occurrence_qs()
 
     def test_single_event(self):
         # one christmas per year
@@ -201,6 +209,10 @@ class EventToolsTestCase(TestCase):
                 to_date=from_date + timedelta(1)
             ))
             self.assertEqual(len(occs), expected)
+
+    @override_settings(USE_TZ=True)
+    def test_single_event_tz(self):
+        self.test_single_event()
 
     def test_event_queryset(self):
         # one christmas per year
@@ -256,6 +268,10 @@ class EventToolsTestCase(TestCase):
                                to_date=date(2017, 12, 31),
                                exact=True)
         self.assertEqual(qs.get(), self.christmas)
+
+    @override_settings(USE_TZ=True)
+    def test_event_queryset_tz(self):
+        self.test_event_queryset()
 
     def test_occurrence_data(self):
         occ = self.christmas.occurrence_set.get()
