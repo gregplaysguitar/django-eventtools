@@ -20,18 +20,22 @@ REPEAT_CHOICES = getattr(settings, 'EVENTTOOLS_REPEAT_CHOICES', (
 REPEAT_MAX = 200
 
 
-USE_TZ = settings.USE_TZ
-if USE_TZ:
-    TIMEZONE = get_default_timezone()
-else:
-    TIMEZONE = None
-
-
 def first_item(gen):
     try:
         return next(gen)
     except StopIteration:
         return None
+
+
+def convert_tz(dt):
+    """Convert a naive datetime argument to a tz-aware datetime, if tz support
+       is enabled. """
+
+    if settings.USE_TZ:
+        return dt.replace(tzinfo=get_default_timezone())
+
+    # if timezone support disabled, assume only naive datetimes are used
+    return dt
 
 
 def as_datetime(d, end=False):
@@ -47,10 +51,9 @@ def as_datetime(d, end=False):
         else:
             time_args = (0, 0, 0)
         new_value = datetime(*(date_args + time_args))
-        new_value = new_value.replace(tzinfo=TIMEZONE)
-        return new_value
+        return convert_tz(new_value)
     # otherwise assume it's a datetime
-    return d
+    return convert_tz(d)
 
 
 def combine_occurrences(generators, limit):
@@ -145,7 +148,7 @@ class BaseModel(models.Model):
         """Return next occurrence as a (start, end) tuple for this instance,
            between from_date and to_date, taking repetition into account. """
         if not from_date:
-            from_date = datetime.now(TIMEZONE)
+            from_date = convert_tz(datetime.now())
         return first_item(
             self.all_occurrences(from_date=from_date, to_date=to_date))
 
@@ -340,8 +343,8 @@ class BaseOccurrence(BaseModel):
                     from_date -= (self.end - self.start)
 
                 repeater = repeater.between(
-                    from_date or datetime(1, 1, 1, 0, 0, tzinfo=TIMEZONE),
-                    to_date or datetime(9999, 12, 31, 23, 59, tzinfo=TIMEZONE),
+                    from_date or convert_tz(datetime(1, 1, 1, 0, 0)),
+                    to_date or convert_tz(datetime(9999, 12, 31, 23, 59)),
                     inc=True
                 )
 
