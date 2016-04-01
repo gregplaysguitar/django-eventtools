@@ -20,6 +20,10 @@ REPEAT_CHOICES = getattr(settings, 'EVENTTOOLS_REPEAT_CHOICES', (
 REPEAT_MAX = 200
 
 
+def max_future_date():
+    return datetime(date.today().year + 10, 1, 1, 0, 0)
+
+
 def first_item(gen):
     try:
         return next(gen)
@@ -331,22 +335,23 @@ class BaseOccurrence(BaseModel):
             delta = self.end - self.start
             repeater = self.get_repeater()
 
+            # start from the first occurrence at the earliest
+            if not from_date or from_date < self.start:
+                from_date = self.start
+
+            # look until the last occurrence, up to an arbitrary maximum date
             if self.repeat_until and (
                     not to_date or
                     as_datetime(self.repeat_until, True) < to_date):
                 to_date = as_datetime(self.repeat_until, True)
+            elif not to_date:
+                to_date = convert_tz(max_future_date())
 
-            if from_date or to_date:
-                # start is used for the filter, so modify from_date to take the
-                # occurrence length into account
-                if from_date:
-                    from_date -= (self.end - self.start)
+            # start is used for the filter, so modify from_date to take the
+            # occurrence length into account
+            from_date -= (self.end - self.start)
 
-                repeater = repeater.between(
-                    from_date or convert_tz(datetime(1, 1, 1, 0, 0)),
-                    to_date or convert_tz(datetime(9999, 12, 31, 23, 59)),
-                    inc=True
-                )
+            repeater = repeater.between(from_date, to_date, inc=True)
 
             count = 0
             for occ_start in repeater:
