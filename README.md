@@ -72,6 +72,8 @@ but returning a single occurrence tuple.
     >>> event.next_occurrence()
     >>> event.next_occurrence(from_date=date(2016, 1, 1))
 
+The method `first_occurrence` also returns a single occurrence tuple, but
+takes no arguments.
 
 ### Queryset filtering
 
