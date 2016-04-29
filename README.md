@@ -37,7 +37,6 @@ Given the following models:
 Create a sample event & occurrences
 
     >>> from datetime import datetime
-    >>> from dateutil import rrule
     >>> from myapp.models import Event
     >>> event = Event.objects.create(title='Test event')
     >>> once_off = Occurrence.objects.create(
@@ -48,12 +47,12 @@ Create a sample event & occurrences
             event=event,
             start=datetime(2015, 12, 25, 7, 0),
             end=datetime(2015, 12, 25, 22, 0),
-            repeat=rrule.YEARLY)
+            repeat='RRULE:FREQ=YEARLY')
     >>> daily = Occurrence.objects.create(
             event=event,
             start=datetime(2016, 1, 1, 7, 0),
             end=datetime(2016, 1, 1, 8, 0),
-            repeat=rrule.DAILY)
+            repeat='RRULE:FREQ=DAILY')
 
 `Event` and `Occurrence` instances, and their associated querysets, all support
 the `all_occurrences` method, which takes two optional arguments - `from_date`
@@ -75,6 +74,8 @@ but returning a single occurrence tuple.
     >>> event.next_occurrence()
     >>> event.next_occurrence(from_date=date(2016, 1, 1))
 
+The method `first_occurrence` also returns a single occurrence tuple, but
+takes no arguments.
 
 ### Queryset filtering
 
