@@ -294,9 +294,6 @@ class BaseOccurrence(BaseModel):
        Subclasses will usually have a ForeignKey pointing to a BaseEvent
        subclass. """
 
-    # override this in subclasses
-    occurrence_data = None
-
     start = models.DateTimeField(db_index=True)
     end = models.DateTimeField(db_index=True)
 
@@ -373,6 +370,10 @@ class BaseOccurrence(BaseModel):
         # Wall time: 56 s
         # The subclassing benefit seems much larger than the performance hit
         return rrule.rrulestr(self.repeat, dtstart=self.start)
+
+    @property
+    def occurrence_data(self):
+        return self
 
     class Meta:
         ordering = ('start', 'end')

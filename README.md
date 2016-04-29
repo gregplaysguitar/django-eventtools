@@ -59,13 +59,15 @@ Create a sample event & occurrences
 the `all_occurrences` method, which takes two optional arguments - `from_date`
 and `to_date`, which may be dates or datetimes. `from_date` defaults to the
 current day, `to_date` to `None`. The method returns a python generator
-yielding tuples in the format `(start, end, data)` - for example:
+yielding tuples in the format `(start, end, instance)` - for example:
 
     >>> Event.objects.all().all_occurrences()
     >>> event.all_occurrences(from_date=datetime(2015, 1, 1, 10, 0))
     >>> event.occurrence_set.all().all_occurrences(to_date=date(2016, 1, 1))
     >>> occurrence.all_occurrences(from_date=date(2016, 1, 1),
                                    to_date=date(2016, 12, 31))
+
+`instance` is an instance of the corresponding BaseOccurrence subclass.
 
 A `next_occurrence` method is also provided, taking the same arguments,
 but returning a single occurrence tuple.
@@ -76,11 +78,11 @@ but returning a single occurrence tuple.
 
 ### Queryset filtering
 
-Event and Occurrence querysets can be filtered, but due to uncertainty 
-with repetitions, `from_date` filtering is only an approximation (whereas 
-`to_date` filtering is accurate). If you need a queryset filtered exactly, 
+Event and Occurrence querysets can be filtered, but due to uncertainty
+with repetitions, `from_date` filtering is only an approximation (whereas
+`to_date` filtering is accurate). If you need a queryset filtered exactly,
 pass `exact=True` - this will filter using generated occurrences but still
-return a queryset - but be careful with this as it may be very slow and/or 
+return a queryset - but be careful with this as it may be very slow and/or
 CPU-hungry. For example
 
     >>> Event.objects.for_period(from_date=date(2015, 1, 1),
@@ -90,7 +92,7 @@ CPU-hungry. For example
 ### Sorting querysets
 
 Event and Occurrence querysets can also be sorted by their next occurrence
-using the `sort_by_next` method. By default this sorts instances by their 
+using the `sort_by_next` method. By default this sorts instances by their
 first occurrence; the optional `from_date` argument will sort by the next
 occurrence after `from_date`. For example
 
@@ -99,23 +101,6 @@ occurrence after `from_date`. For example
     >>>      .sort_by_next(date(2015, 1, 1))
 
 Note that this method returns a sorted list, not a queryset.
-
-### Adding additional data to occurrence tuples
-
-If you need more information about the occurrence than just a pair of dates,
-add an occurrence_data property to your `BaseOccurrence` subclass - i.e.
-
-    class Occurrence(BaseOccurrence):
-        event = models.ForeignKey(Event)
-
-        @property
-        def occurrence_data(self):
-            return {
-                'event_title': self.event.title,
-                'image': self.event.image,
-            }
-
-The result will be appended to the occurrence tuple, i.e. `(start, end, data)`
 
 
 ## Running tests
