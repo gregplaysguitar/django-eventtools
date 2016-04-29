@@ -34,11 +34,11 @@ class EventToolsTestCase(TestCase):
             end=datetime(2015, 1, 4, 10, 0),
             repeat="RRULE:FREQ=WEEKLY")
 
-        self.daily = Event.objects.create(title='Daily 7-8am')
+        self.daily = Event.objects.create(title='Daily 7am')
         Occurrence.objects.create(
             event=self.daily,
             start=datetime(2015, 1, 1, 7, 0),
-            end=datetime(2015, 1, 1, 8, 0),
+            end=None,
             repeat="RRULE:FREQ=DAILY")
 
         self.past = Event.objects.create(title='Past event')

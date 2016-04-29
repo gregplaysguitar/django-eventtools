@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from dateutil import rrule
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from django.conf import settings
 from django.db import models
@@ -190,7 +190,9 @@ class EventQuerySet(BaseQuerySet):
             # just winnow down as much as possible via queryset filtering
             from_date = as_datetime(from_date)
             filtered_qs = filtered_qs.filter(
-                Q(occurrence__end__gte=from_date) |
+                Q(occurrence__end__isnull=False,
+                  occurrence__end__gte=from_date) |
+                Q(occurrence__start__gte=from_date) |
                 (Q(occurrence__repeat__isnull=False) &
                  (Q(occurrence__repeat_until__gte=from_date) |
                   Q(occurrence__repeat_until__isnull=True)))).distinct()
@@ -248,7 +250,8 @@ class OccurrenceQuerySet(BaseQuerySet):
             # just winnow down as much as possible via queryset filtering
             from_date = as_datetime(from_date)
             filtered_qs = filtered_qs.filter(
-                Q(end__gte=from_date) |
+                Q(end__isnull=False, end__gte=from_date) |
+                Q(start__gte=from_date) |
                 (Q(repeat__isnull=False) &
                  (Q(repeat_until__gte=from_date) |
                   Q(repeat_until__isnull=True)))).distinct()
@@ -295,7 +298,7 @@ class BaseOccurrence(BaseModel):
        subclass. """
 
     start = models.DateTimeField(db_index=True)
-    end = models.DateTimeField(db_index=True)
+    end = models.DateTimeField(db_index=True, null=True, blank=True)
 
     repeat = ChoiceTextField(choices=REPEAT_CHOICES, default='', blank=True)
     repeat_until = models.DateField(null=True, blank=True)
@@ -325,11 +328,12 @@ class BaseOccurrence(BaseModel):
         to_date = to_date and as_datetime(to_date, True)
 
         if not self.repeat:
-            if (not from_date or self.end >= from_date) and \
+            if (not from_date or self.start >= from_date or
+                (self.end and self.end >= from_date)) and \
                (not to_date or self.start <= to_date):
                 yield (self.start, self.end, self.occurrence_data)
         else:
-            delta = self.end - self.start
+            delta = (self.end - self.start) if self.end else timedelta(0)
             repeater = self.get_repeater()
 
             # start from the first occurrence at the earliest
@@ -346,7 +350,7 @@ class BaseOccurrence(BaseModel):
 
             # start is used for the filter, so modify from_date to take the
             # occurrence length into account
-            from_date -= (self.end - self.start)
+            from_date -= delta
 
             repeater = repeater.between(from_date, to_date, inc=True)
 
