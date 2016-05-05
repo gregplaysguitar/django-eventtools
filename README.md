@@ -103,6 +103,22 @@ occurrence after `from_date`. For example
 
 Note that this method returns a sorted list, not a queryset.
 
+## Custom repeat intervals
+
+By default, occurrences can repeat daily, weekly, monthly or yearly, but any 
+interval that can be expressed as an
+[rrulestr](https://labix.org/python-dateutil#head-e987b581aebacf25c7276d3e9214385a12a091f2)
+can be added. To customise, set `EVENTTOOLS_REPEAT_CHOICES` in your django 
+settings. The default value is
+
+    EVENTTOOLS_REPEAT_CHOICES = (
+        ("RRULE:FREQ=DAILY", 'Daily'),
+        ("RRULE:FREQ=WEEKLY", 'Weekly'),
+        ("RRULE:FREQ=MONTHLY", 'Monthly'),
+        ("RRULE:FREQ=YEARLY", 'Yearly'),
+    )
+
+Set `EVENTTOOLS_REPEAT_CHOICES = None` to make the field plain-text.
 
 ## Running tests
 
