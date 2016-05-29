@@ -324,6 +324,9 @@ class BaseOccurrence(BaseModel):
         """Return a generator yielding a (start, end) tuple for all dates
            for this occurrence, taking repetition into account. """
 
+        if not self.start:
+            return []
+
         from_date = from_date and as_datetime(from_date)
         to_date = to_date and as_datetime(to_date, True)
 
