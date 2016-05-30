@@ -325,7 +325,7 @@ class BaseOccurrence(BaseModel):
            for this occurrence, taking repetition into account. """
 
         if not self.start:
-            return []
+            return
 
         from_date = from_date and as_datetime(from_date)
         to_date = to_date and as_datetime(to_date, True)
