@@ -193,7 +193,7 @@ class EventQuerySet(BaseQuerySet):
                 Q(occurrence__end__isnull=False,
                   occurrence__end__gte=from_date) |
                 Q(occurrence__start__gte=from_date) |
-                (Q(occurrence__repeat__isnull=False) &
+                (~Q(occurrence__repeat='') &
                  (Q(occurrence__repeat_until__gte=from_date) |
                   Q(occurrence__repeat_until__isnull=True)))).distinct()
 
@@ -252,7 +252,7 @@ class OccurrenceQuerySet(BaseQuerySet):
             filtered_qs = filtered_qs.filter(
                 Q(end__isnull=False, end__gte=from_date) |
                 Q(start__gte=from_date) |
-                (Q(repeat__isnull=False) &
+                (~Q(repeat='') &
                  (Q(repeat_until__gte=from_date) |
                   Q(repeat_until__isnull=True)))).distinct()
 

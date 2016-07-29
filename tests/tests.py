@@ -348,3 +348,33 @@ class EventToolsTestCase(TestCase):
         self.assertEqual(weekly.repeat, 'RRULE:FREQ=WEEKLY')
         daily.refresh_from_db()
         self.assertEqual(daily.repeat, 'RRULE:FREQ=DAILY')
+
+    def test_queryset_filtering(self):
+        event = Event.objects.create(title='One off')
+        Occurrence.objects.create(
+            event=event,
+            start=datetime(2000, 1, 1, 7, 0),
+            end=datetime(2000, 1, 1, 8, 0))
+        events = Event.objects.filter(pk=event.pk)
+        occs = event.occurrence_set.all()
+
+        # for_period should be accurate in this simple case
+        self.assertEqual(
+            occs.for_period(date(2000, 1, 1)).count(),
+            events.for_period(date(2000, 1, 1)).count(),
+            1)
+
+        self.assertEqual(
+            occs.for_period(date(2001, 1, 1)).count(),
+            events.for_period(date(2001, 1, 1)).count(),
+            0)
+
+        self.assertEqual(
+            occs.for_period(date(1999, 1, 1), date(1999, 1, 2)).count(),
+            events.for_period(date(1999, 1, 1), date(1999, 1, 2)).count(),
+            0)
+
+        self.assertEqual(
+            occs.for_period(date(1999, 1, 1), date(2001, 1, 2)).count(),
+            events.for_period(date(1999, 1, 1), date(2001, 1, 2)).count(), 
+            0)
