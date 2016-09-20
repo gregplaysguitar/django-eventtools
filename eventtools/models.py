@@ -7,7 +7,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q, Case, When, Value
 from django.core.exceptions import ValidationError
-from django.utils.timezone import get_default_timezone
+from django.utils.timezone import make_aware, is_naive
 
 
 # set EVENTTOOLS_REPEAT_CHOICES = None to make this a plain textfield
@@ -35,8 +35,8 @@ def convert_tz(dt):
     """Convert a naive datetime argument to a tz-aware datetime, if tz support
        is enabled. """
 
-    if settings.USE_TZ:
-        return dt.replace(tzinfo=get_default_timezone())
+    if settings.USE_TZ and is_naive(dt):
+        return make_aware(dt)
 
     # if timezone support disabled, assume only naive datetimes are used
     return dt
