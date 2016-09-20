@@ -3,9 +3,9 @@ from dateutil import rrule
 from dateutil.relativedelta import relativedelta
 
 from django.test import TestCase, override_settings
-from django.utils.timezone import get_default_timezone
+from django.utils.timezone import get_default_timezone, make_aware
 from django.conf import settings
-from eventtools.models import REPEAT_MAX, convert_tz
+from eventtools.models import REPEAT_MAX
 
 from .models import Event, Occurrence
 
@@ -384,11 +384,22 @@ class EventToolsTestCase(TestCase):
         # Check that event start times are consistent accross daylight saving
         # changes - on an EST5EDT system, daylight saving ends on 5/11/2016
         event = Event.objects.create(title='Test')
-        Occurrence.objects.create(
-            event=event, start=datetime(2016, 11, 5, 10, 0),
-            repeat="RRULE:FREQ=WEEKLY")
+        start = datetime(2016, 11, 5, 10, 0)
+        Occurrence.objects.create(event=event, start=start,
+                                  repeat="RRULE:FREQ=WEEKLY")
 
-        occs = list(event.all_occurrences(from_date=date(2016, 11, 5),
-                                          limit=2))
-        self.assertEqual(occs[0][0], convert_tz(datetime(2016, 11, 5, 10, 0)))
-        self.assertEqual(occs[1][0], convert_tz(datetime(2016, 11, 12, 10, 0)))
+        occs = list(event.all_occurrences(from_date=start, limit=2))
+        self.assertEqual(occs[0][0], make_aware(start))
+        self.assertEqual(occs[1][0], make_aware(datetime(2016, 11, 12, 10, 0)))
+
+    @override_settings(USE_TZ=True, TIME_ZONE='Pacific/Auckland')
+    def test_dst_boundary_nz(self):
+        # NZ DST commences on 25/9/2016
+        event = Event.objects.create(title='Test')
+        start = datetime(2016, 9, 20, 10, 0)
+        Occurrence.objects.create(event=event, start=start,
+                                  repeat="RRULE:FREQ=WEEKLY")
+
+        occs = list(event.all_occurrences(from_date=start.date(), limit=2))
+        self.assertEqual(occs[0][0], make_aware(start))
+        self.assertEqual(occs[1][0], make_aware(datetime(2016, 9, 27, 10, 0)))
