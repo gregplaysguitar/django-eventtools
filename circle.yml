@@ -1,5 +1,5 @@
 test:
   override:
     - pip install tox tox-pyenv
-    - pyenv local 2.7.12 3.3.6 3.4.5 3.5.2
+    - pyenv local 3.5.2
     - tox
