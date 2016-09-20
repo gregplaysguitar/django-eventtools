@@ -31,14 +31,24 @@ def first_item(gen):
         return None
 
 
+def is_naive(dt):
+    """
+    Returns true if the passed datetime has no timezone data.
+    Pattern is from the python datetime module documentation.
+    """
+    return not (dt.tzinfo is not None and
+                dt.tzinfo.utcoffset(dt) is not None)
+
+
 def convert_tz(dt):
-    """Convert a naive datetime argument to a tz-aware datetime, if tz support
-       is enabled. """
-
-    if settings.USE_TZ:
-        return dt.replace(tzinfo=get_default_timezone())
-
-    # if timezone support disabled, assume only naive datetimes are used
+    """
+    Convert a naive datetime argument to a tz-aware datetime. Uses the local
+    timezone if defined in DJango, otherwise UTC is used. If the passed value
+    is not a datetime instance, it is returned unchanged.
+    """
+    tz = get_default_timezone()
+    if is_naive(dt) and settings.USE_TZ and hasattr(tz, 'localize'):
+        return get_default_timezone().localize(dt)
     return dt
 
 
@@ -46,18 +56,40 @@ def as_datetime(d, end=False):
     """Normalise a date/datetime argument to a datetime for use in filters
 
     If a date is passed, it will be converted to a datetime with the time set
-    to 0:00, or 23:59:59 if end is True."""
-
+    to 0:00, or 23:59:59 if end is True. Datetime object returned is naive."""
     if type(d) is date:
         date_args = tuple(d.timetuple())[:3]
         if end:
             time_args = (23, 59, 59)
         else:
             time_args = (0, 0, 0)
-        new_value = datetime(*(date_args + time_args))
-        return convert_tz(new_value)
+        value = datetime(*(date_args + time_args))
+
     # otherwise assume it's a datetime
-    return convert_tz(d)
+    else:
+        value = d
+    return value
+
+
+def strip_tz(dt):
+    """
+    Removes timezone information from a passed datetime. If localize is true,
+    the resulting time is calculated before being made naive to ensure correct
+    calculation of recurrences.
+
+    Passed values that are not datetime instances are returned unchanged.
+    """
+    if not isinstance(dt, datetime):
+        return dt
+
+    localtz = get_default_timezone()
+    if settings.USE_TZ and hasattr(localtz, "normalize"):
+        dt = localtz.normalize(dt)
+
+    # Now destroy timezone data.
+    naive_date = dt.replace(tzinfo=None)
+
+    return naive_date
 
 
 def combine_occurrences(generators, limit):
@@ -69,7 +101,7 @@ def combine_occurrences(generators, limit):
     grouped = []
     for gen in generators:
         try:
-            next_date = next(gen)
+            next_date = tuple([strip_tz(x) for x in next(gen)])
         except StopIteration:
             pass
         else:
@@ -88,7 +120,8 @@ def combine_occurrences(generators, limit):
                 next_group = group
 
         # yield the next (start, end) pair, with occurrence data
-        yield next_group['next']
+        yield (convert_tz(next_group['next'][0]),
+               convert_tz(next_group['next'][1]), next_group['next'][2])
         count += 1
 
         # update the group's next item, so we don't keep yielding the same date
@@ -139,7 +172,8 @@ class BaseQuerySet(models.QuerySet):
         qs = self.for_period(from_date, to_date)
 
         return combine_occurrences(
-            (obj.all_occurrences(from_date, to_date) for obj in qs), limit)
+            (obj.all_occurrences(from_date, to_date)
+             for obj in qs), limit)
 
 
 class BaseModel(models.Model):
@@ -218,7 +252,6 @@ class BaseEvent(BaseModel):
     def all_occurrences(self, from_date=None, to_date=None, limit=None):
         """Return a generator yielding a (start, end) tuple for all dates
            for this event, taking repetition into account. """
-
         return self.occurrence_set.all_occurrences(from_date, to_date,
                                                    limit=limit)
 
@@ -327,21 +360,23 @@ class BaseOccurrence(BaseModel):
         if not self.start:
             return
 
-        from_date = from_date and as_datetime(from_date)
-        to_date = to_date and as_datetime(to_date, True)
+        from_date = from_date and strip_tz(as_datetime(from_date))
+        to_date = to_date and strip_tz(as_datetime(to_date, True))
+        naive_start = strip_tz(self.start)
+        naive_end = strip_tz(self.end)
 
         if not self.repeat:
-            if (not from_date or self.start >= from_date or
-                (self.end and self.end >= from_date)) and \
-               (not to_date or self.start <= to_date):
+            if (not from_date or naive_start >= from_date or
+                (naive_end and naive_end >= from_date)) and \
+               (not to_date or naive_start <= to_date):
                 yield (self.start, self.end, self.occurrence_data)
         else:
             delta = (self.end - self.start) if self.end else timedelta(0)
             repeater = self.get_repeater()
 
             # start from the first occurrence at the earliest
-            if not from_date or from_date < self.start:
-                from_date = self.start
+            if not from_date or from_date < naive_start:
+                from_date = naive_start
 
             # look until the last occurrence, up to an arbitrary maximum date
             if self.repeat_until and (
@@ -349,7 +384,7 @@ class BaseOccurrence(BaseModel):
                     as_datetime(self.repeat_until, True) < to_date):
                 to_date = as_datetime(self.repeat_until, True)
             elif not to_date:
-                to_date = convert_tz(max_future_date())
+                to_date = max_future_date()
 
             # start is used for the filter, so modify from_date to take the
             # occurrence length into account
@@ -363,7 +398,8 @@ class BaseOccurrence(BaseModel):
                 if count > limit:
                     return
 
-                yield (occ_start, occ_start + delta, self.occurrence_data)
+                yield (convert_tz(occ_start), convert_tz(occ_start + delta),
+                       self.occurrence_data)
 
     def get_repeater(self):
         # Timings to get all_occurrences() for a set of 2500 Occurrence objects
@@ -376,7 +412,8 @@ class BaseOccurrence(BaseModel):
         # CPU times: user 53.5 s, sys: 100 ms, total: 53.6 s
         # Wall time: 56 s
         # The subclassing benefit seems much larger than the performance hit
-        return rrule.rrulestr(self.repeat, dtstart=self.start)
+        start = strip_tz(self.start)
+        return rrule.rrulestr(self.repeat, dtstart=start)
 
     @property
     def occurrence_data(self):
@@ -387,4 +424,4 @@ class BaseOccurrence(BaseModel):
         abstract = True
 
     def __unicode__(self):
-        return u"%s" % (self.start)
+        return u"%s" % (self.start,)
