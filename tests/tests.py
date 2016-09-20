@@ -5,7 +5,7 @@ from dateutil.relativedelta import relativedelta
 from django.test import TestCase, override_settings
 from django.utils.timezone import get_default_timezone
 from django.conf import settings
-from eventtools.models import REPEAT_MAX
+from eventtools.models import REPEAT_MAX, convert_tz
 
 from .models import Event, Occurrence
 
@@ -376,5 +376,19 @@ class EventToolsTestCase(TestCase):
 
         self.assertEqual(
             occs.for_period(date(1999, 1, 1), date(2001, 1, 2)).count(),
-            events.for_period(date(1999, 1, 1), date(2001, 1, 2)).count(), 
+            events.for_period(date(1999, 1, 1), date(2001, 1, 2)).count(),
             0)
+
+    @override_settings(USE_TZ=True, TIME_ZONE='America/New_York')
+    def test_dst_boundary(self):
+        # Check that event start times are consistent accross daylight saving
+        # changes - on an EST5EDT system, daylight saving ends on 5/11/2016
+        event = Event.objects.create(title='Test')
+        Occurrence.objects.create(
+            event=event, start=datetime(2016, 11, 5, 10, 0),
+            repeat="RRULE:FREQ=WEEKLY")
+
+        occs = list(event.all_occurrences(from_date=date(2016, 11, 5),
+                                          limit=2))
+        self.assertEqual(occs[0][0], convert_tz(datetime(2016, 11, 5, 10, 0)))
+        self.assertEqual(occs[1][0], convert_tz(datetime(2016, 11, 12, 10, 0)))
