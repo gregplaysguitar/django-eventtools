@@ -7,7 +7,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q, Case, When, Value
 from django.core.exceptions import ValidationError
-from django.utils.timezone import make_aware, is_naive
+from django.utils.timezone import make_aware, is_naive, make_naive, is_aware
 
 
 # set EVENTTOOLS_REPEAT_CHOICES = None to make this a plain textfield
@@ -31,12 +31,23 @@ def first_item(gen):
         return None
 
 
-def convert_tz(dt):
+def default_aware(dt):
     """Convert a naive datetime argument to a tz-aware datetime, if tz support
        is enabled. """
 
     if settings.USE_TZ and is_naive(dt):
         return make_aware(dt)
+
+    # if timezone support disabled, assume only naive datetimes are used
+    return dt
+
+
+def default_naive(dt):
+    """Convert an aware datetime argument to naive, if tz support
+       is enabled. """
+
+    if settings.USE_TZ and is_aware(dt):
+        return make_naive(dt)
 
     # if timezone support disabled, assume only naive datetimes are used
     return dt
@@ -55,9 +66,9 @@ def as_datetime(d, end=False):
         else:
             time_args = (0, 0, 0)
         new_value = datetime(*(date_args + time_args))
-        return convert_tz(new_value)
+        return default_aware(new_value)
     # otherwise assume it's a datetime
-    return convert_tz(d)
+    return default_aware(d)
 
 
 def combine_occurrences(generators, limit):
@@ -152,7 +163,7 @@ class BaseModel(models.Model):
         """Return next occurrence as a (start, end) tuple for this instance,
            between from_date and to_date, taking repetition into account. """
         if not from_date:
-            from_date = convert_tz(datetime.now())
+            from_date = datetime.now()
         return first_item(
             self.all_occurrences(from_date=from_date, to_date=to_date))
 
@@ -349,13 +360,15 @@ class BaseOccurrence(BaseModel):
                     as_datetime(self.repeat_until, True) < to_date):
                 to_date = as_datetime(self.repeat_until, True)
             elif not to_date:
-                to_date = convert_tz(max_future_date())
+                to_date = default_aware(max_future_date())
 
             # start is used for the filter, so modify from_date to take the
             # occurrence length into account
             from_date -= delta
 
-            repeater = repeater.between(from_date, to_date, inc=True)
+            # always send naive datetimes to the repeater
+            repeater = repeater.between(default_naive(from_date),
+                                        default_naive(to_date), inc=True)
 
             count = 0
             for occ_start in repeater:
@@ -363,6 +376,8 @@ class BaseOccurrence(BaseModel):
                 if count > limit:
                     return
 
+                # make naive results aware
+                occ_start = default_aware(occ_start)
                 yield (occ_start, occ_start + delta, self.occurrence_data)
 
     def get_repeater(self):
@@ -376,7 +391,8 @@ class BaseOccurrence(BaseModel):
         # CPU times: user 53.5 s, sys: 100 ms, total: 53.6 s
         # Wall time: 56 s
         # The subclassing benefit seems much larger than the performance hit
-        return rrule.rrulestr(self.repeat, dtstart=self.start)
+
+        return rrule.rrulestr(self.repeat, dtstart=default_naive(self.start))
 
     @property
     def occurrence_data(self):
