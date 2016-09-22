@@ -106,8 +106,8 @@ Note that this method returns a sorted list, not a queryset.
 ## Custom repeat intervals
 
 Occurrences can repeat using any interval that can be expressed as an
-[rrulestr](https://labix.org/python-dateutil#head-e987b581aebacf25c7276d3e9214385a12a091f2). 
-To customise the available options, set `EVENTTOOLS_REPEAT_CHOICES` in 
+[rrulestr](https://labix.org/python-dateutil#head-e987b581aebacf25c7276d3e9214385a12a091f2).
+To customise the available options, set `EVENTTOOLS_REPEAT_CHOICES` in
 your django settings. The default value is
 
     EVENTTOOLS_REPEAT_CHOICES = (
