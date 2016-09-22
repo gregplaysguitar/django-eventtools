@@ -403,3 +403,13 @@ class EventToolsTestCase(TestCase):
         occs = list(event.all_occurrences(from_date=start.date(), limit=2))
         self.assertEqual(occs[0][0], start)
         self.assertEqual(occs[1][0], make_aware(datetime(2016, 9, 27, 10, 0)))
+
+    def test_sort_by_next(self):
+        qs = Event.objects.filter(pk__in=[self.christmas.pk, self.weekends.pk])
+
+        # Christmas 2015 fell on a Friday
+        christmas_first = qs.sort_by_next(from_date=date(2015, 12, 24))
+        self.assertEqual(christmas_first, [self.christmas, self.weekends])
+
+        weekend_first = qs.sort_by_next(from_date=date(2015, 12, 20))
+        self.assertEqual(weekend_first, [self.weekends, self.christmas])
