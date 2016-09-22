@@ -384,22 +384,22 @@ class EventToolsTestCase(TestCase):
         # Check that event start times are consistent across daylight saving
         # changes - on an EST5EDT system, daylight saving ends on 5/11/2016
         event = Event.objects.create(title='Test')
-        start = datetime(2016, 11, 5, 10, 0)
+        start = make_aware(datetime(2016, 11, 5, 10, 0))
         Occurrence.objects.create(event=event, start=start,
                                   repeat="RRULE:FREQ=WEEKLY")
 
         occs = list(event.all_occurrences(from_date=start, limit=2))
-        self.assertEqual(occs[0][0], make_aware(start))
+        self.assertEqual(occs[0][0], start)
         self.assertEqual(occs[1][0], make_aware(datetime(2016, 11, 12, 10, 0)))
 
     @override_settings(USE_TZ=True, TIME_ZONE='Pacific/Auckland')
     def test_dst_boundary_nz(self):
         # NZ DST commences on 25/9/2016
         event = Event.objects.create(title='Test')
-        start = datetime(2016, 9, 20, 10, 0)
+        start = make_aware(datetime(2016, 9, 20, 10, 0))
         Occurrence.objects.create(event=event, start=start,
                                   repeat="RRULE:FREQ=WEEKLY")
 
         occs = list(event.all_occurrences(from_date=start.date(), limit=2))
-        self.assertEqual(occs[0][0], make_aware(start))
+        self.assertEqual(occs[0][0], start)
         self.assertEqual(occs[1][0], make_aware(datetime(2016, 9, 27, 10, 0)))
