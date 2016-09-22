@@ -381,7 +381,7 @@ class EventToolsTestCase(TestCase):
 
     @override_settings(USE_TZ=True, TIME_ZONE='America/New_York')
     def test_dst_boundary(self):
-        # Check that event start times are consistent accross daylight saving
+        # Check that event start times are consistent across daylight saving
         # changes - on an EST5EDT system, daylight saving ends on 5/11/2016
         event = Event.objects.create(title='Test')
         start = datetime(2016, 11, 5, 10, 0)
