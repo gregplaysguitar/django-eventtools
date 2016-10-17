@@ -144,6 +144,11 @@ class EventToolsTestCase(TestCase):
                   .next_occurrence(from_date=self.today)
         self.assertEqual(occ[0].date(), self.today)
 
+        # test next_occurrence for querysets
+        occ = self.daily.occurrence_set.all() \
+                  .next_occurrence(from_date=self.today)
+        self.assertEqual(occ[0].date(), self.today)
+
     @override_settings(USE_TZ=True)
     def test_single_occurrence_tz(self):
         self.test_single_occurrence()
