@@ -57,8 +57,8 @@ Create a sample event & occurrences
 
 `Event` and `Occurrence` instances, and their associated querysets, all support
 the `all_occurrences` method, which takes two optional arguments - `from_date`
-and `to_date`, which may be dates or datetimes. `from_date` defaults to the
-current day, `to_date` to `None`. The method returns a python generator
+and `to_date`, which may be dates or datetimes. `from_date` and `to_date` 
+default to `None`. The method returns a python generator
 yielding tuples in the format `(start, end, instance)` - for example:
 
     >>> Event.objects.all().all_occurrences()
