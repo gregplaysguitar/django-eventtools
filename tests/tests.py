@@ -355,34 +355,67 @@ class EventToolsTestCase(TestCase):
         self.assertEqual(daily.repeat, 'RRULE:FREQ=DAILY')
 
     def test_queryset_filtering(self):
-        event = Event.objects.create(title='One off')
+        event1 = Event.objects.create(title='Jan 1st 2000')
         Occurrence.objects.create(
-            event=event,
+            event=event1,
             start=datetime(2000, 1, 1, 7, 0),
             end=datetime(2000, 1, 1, 8, 0))
-        events = Event.objects.filter(pk=event.pk)
-        occs = event.occurrence_set.all()
+        event2 = Event.objects.create(title='Jan 1st 2001')
+        Occurrence.objects.create(
+            event=event2,
+            start=datetime(2001, 1, 1, 7, 0),
+            end=datetime(2001, 1, 1, 8, 0))
+        events = Event.objects.filter(pk__in=[event1.pk, event2.pk])
+        occs = Occurrence.objects.filter(event__pk__in=[event1.pk, event2.pk])
 
-        # for_period should be accurate in this simple case
+        # 1 in 2000
         self.assertEqual(
-            occs.for_period(date(2000, 1, 1)).count(),
-            events.for_period(date(2000, 1, 1)).count(),
-            1)
+            1, occs.for_period(date(2000, 1, 1), date(2000, 12, 31)).count())
+        self.assertEqual(
+            1, events.for_period(date(2000, 1, 1), date(2000, 12, 31)).count())
 
-        self.assertEqual(
-            occs.for_period(date(2001, 1, 1)).count(),
-            events.for_period(date(2001, 1, 1)).count(),
-            0)
+        # 1 after 1st Jan 2001
+        self.assertEqual(1, occs.for_period(date(2001, 1, 1)).count())
+        self.assertEqual(1, events.for_period(date(2001, 1, 1)).count())
 
+        # 2 between 2000-1-1 and 2001-1-1 (inclusive)
         self.assertEqual(
-            occs.for_period(date(1999, 1, 1), date(1999, 1, 2)).count(),
-            events.for_period(date(1999, 1, 1), date(1999, 1, 2)).count(),
-            0)
+            2, occs.for_period(date(2000, 1, 1), date(2001, 1, 1)).count())
+        self.assertEqual(
+            2, events.for_period(date(2000, 1, 1), date(2001, 1, 1)).count())
 
+        # none in 1999
         self.assertEqual(
-            occs.for_period(date(1999, 1, 1), date(2001, 1, 2)).count(),
-            events.for_period(date(1999, 1, 1), date(2001, 1, 2)).count(),
-            0)
+            0, occs.for_period(date(1999, 1, 1), date(1999, 12, 31)).count())
+        self.assertEqual(
+            0, events.for_period(date(1999, 1, 1), date(1999, 12, 31)).count())
+
+        # none in 2002
+        self.assertEqual(
+            0, occs.for_period(date(2002, 1, 1), date(2002, 12, 31)).count())
+        self.assertEqual(
+            0, events.for_period(date(2002, 1, 1), date(2002, 12, 31)).count())
+
+        # add another past event with yearly repetition
+        event3 = Event.objects.create(title='Jun 1st 1998, yearly')
+        Occurrence.objects.create(
+            event=event3,
+            start=datetime(1998, 6, 1, 7, 0),
+            end=datetime(1998, 6, 1, 8, 0),
+            repeat='RRULE:FREQ=YEARLY')
+        events = events | Event.objects.filter(pk=event3.pk)
+        occs = occs | Occurrence.objects.filter(event__pk=event3.pk)
+
+        # Jan 2001 now contains a false positive
+        self.assertEqual(
+            2, occs.for_period(date(2001, 1, 1), date(2001, 1, 31)).count())
+        self.assertEqual(
+            2, events.for_period(date(2001, 1, 1), date(2001, 1, 31)).count())
+        # exact=True removes it
+        self.assertEqual(1, occs.for_period(
+            date(2001, 1, 1), date(2001, 1, 31), exact=True).count())
+        self.assertEqual(1, events.for_period(
+            date(2001, 1, 1), date(2001, 1, 31), exact=True).count())
 
     @override_settings(USE_TZ=True, TIME_ZONE='America/New_York')
     def test_dst_boundary(self):
