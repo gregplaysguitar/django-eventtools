@@ -7,54 +7,54 @@ from django.utils.timezone import get_default_timezone, make_aware
 from django.conf import settings
 from eventtools.models import REPEAT_MAX
 
-from .models import Event, Occurrence
+from .models import MyEvent, MyOccurrence
 
 
 class EventToolsTestCase(TestCase):
 
     def setUp(self):
-        self.christmas = Event.objects.create(title='Christmas')
-        Occurrence.objects.create(
+        self.christmas = MyEvent.objects.create(title='Christmas')
+        MyOccurrence.objects.create(
             event=self.christmas,
             start=datetime(2000, 12, 25, 7, 0),
             end=datetime(2000, 12, 25, 22, 0),
             repeat="RRULE:FREQ=YEARLY")
 
-        self.weekends = Event.objects.create(title='Weekends 9-10am')
+        self.weekends = MyEvent.objects.create(title='Weekends 9-10am')
         # Saturday
-        Occurrence.objects.create(
+        MyOccurrence.objects.create(
             event=self.weekends,
             start=datetime(2015, 1, 3, 9, 0),
             end=datetime(2015, 1, 3, 10, 0),
             repeat="RRULE:FREQ=WEEKLY")
         # Sunday
-        Occurrence.objects.create(
+        MyOccurrence.objects.create(
             event=self.weekends,
             start=datetime(2015, 1, 4, 9, 0),
             end=datetime(2015, 1, 4, 10, 0),
             repeat="RRULE:FREQ=WEEKLY")
 
-        self.daily = Event.objects.create(title='Daily 7am')
-        Occurrence.objects.create(
+        self.daily = MyEvent.objects.create(title='Daily 7am')
+        MyOccurrence.objects.create(
             event=self.daily,
             start=datetime(2015, 1, 1, 7, 0),
             end=None,
             repeat="RRULE:FREQ=DAILY")
 
-        self.past = Event.objects.create(title='Past event')
-        Occurrence.objects.create(
+        self.past = MyEvent.objects.create(title='Past event')
+        MyOccurrence.objects.create(
             event=self.past,
             start=datetime(2014, 1, 1, 7, 0),
             end=datetime(2014, 1, 1, 8, 0))
 
-        self.future = Event.objects.create(title='Future event')
-        Occurrence.objects.create(
+        self.future = MyEvent.objects.create(title='Future event')
+        MyOccurrence.objects.create(
             event=self.future,
             start=datetime(2016, 1, 1, 7, 0),
             end=datetime(2016, 1, 1, 8, 0))
 
-        self.monthly = Event.objects.create(title='Monthly until Dec 2017')
-        Occurrence.objects.create(
+        self.monthly = MyEvent.objects.create(title='Monthly until Dec 2017')
+        MyOccurrence.objects.create(
             event=self.monthly,
             start=datetime(2016, 1, 1, 7, 0),
             end=datetime(2016, 1, 1, 8, 0),
@@ -67,7 +67,7 @@ class EventToolsTestCase(TestCase):
         self.last_of_year = date(2015, 12, 31)
 
     def test_single_occurrence(self):
-        occ = self.christmas.occurrence_set.get()
+        occ = self.christmas.get_related_occurrences().get()
 
         # using date() arguments
         dates = list(occ.all_occurrences(
@@ -130,22 +130,22 @@ class EventToolsTestCase(TestCase):
         self.assertEqual(len(dates), 0)
 
         # check next_occurence method for non-repeating occurrences
-        occ = self.past.occurrence_set.get() \
+        occ = self.past.get_related_occurrences().get() \
                   .next_occurrence(from_date=self.today)
         self.assertEqual(occ, None)
 
-        occ = self.future.occurrence_set.get() \
+        occ = self.future.get_related_occurrences().get() \
                   .next_occurrence(from_date=self.today)
         self.assertEqual(occ[0].timetuple()[:5],
                          datetime(2016, 1, 1, 7, 0).timetuple()[:5])
 
         # and for repeating
-        occ = self.daily.occurrence_set.get() \
+        occ = self.daily.get_related_occurrences().get() \
                   .next_occurrence(from_date=self.today)
         self.assertEqual(occ[0].date(), self.today)
 
         # test next_occurrence for querysets
-        occ = self.daily.occurrence_set.all() \
+        occ = self.daily.get_related_occurrences().all() \
                   .next_occurrence(from_date=self.today)
         self.assertEqual(occ[0].date(), self.today)
 
@@ -155,7 +155,7 @@ class EventToolsTestCase(TestCase):
 
     def test_occurrence_qs(self):
         events = [self.christmas, self.past, self.future]
-        occs = Occurrence.objects.filter(event__in=events)
+        occs = MyOccurrence.objects.filter(event__in=events)
 
         # two christmases and the future event
         dates = list(occs.all_occurrences(
@@ -232,7 +232,7 @@ class EventToolsTestCase(TestCase):
 
     def test_event_queryset(self):
         # one christmas per year
-        christmas_qs = Event.objects.filter(pk=self.christmas.pk)
+        christmas_qs = MyEvent.objects.filter(pk=self.christmas.pk)
         for i in range(0, 10):
             occs = list(christmas_qs.all_occurrences(
                 from_date=self.first_of_year + relativedelta(years=i),
@@ -261,7 +261,7 @@ class EventToolsTestCase(TestCase):
         # check the number of events for some arbitrary dates
         for days in (8, 16, 24, 32, 40, 48, 56):
             from_date = self.first_of_year + timedelta(days)
-            qs = Event.objects.for_period(
+            qs = MyEvent.objects.for_period(
                 from_date=from_date,
                 to_date=from_date,
                 exact=True,
@@ -271,7 +271,7 @@ class EventToolsTestCase(TestCase):
             self.assertEqual(events, expected(from_date))
 
         # test queryset filtering
-        events = Event.objects.filter(
+        events = MyEvent.objects.filter(
             pk__in=(self.christmas.pk, self.future.pk, self.past.pk))
 
         qs = events.for_period(from_date=date(2015, 1, 1), exact=True)
@@ -290,7 +290,7 @@ class EventToolsTestCase(TestCase):
         self.test_event_queryset()
 
     def test_occurrence_data(self):
-        occ = self.christmas.occurrence_set.get()
+        occ = self.christmas.get_related_occurrences().get()
         self.assertEqual(occ.next_occurrence()[2], occ.occurrence_data)
 
     def test_repeat_until(self):
@@ -302,16 +302,16 @@ class EventToolsTestCase(TestCase):
     def test_occurrence_limit(self):
         test_objs = [
             self.daily,
-            Event.objects.filter(pk=self.daily.pk),
-            self.daily.occurrence_set.all(),
-            self.daily.occurrence_set.get(),
+            MyEvent.objects.filter(pk=self.daily.pk),
+            self.daily.get_related_occurrences().all(),
+            self.daily.get_related_occurrences().get(),
         ]
         for obj in test_objs:
             self.assertEqual(len(list(obj.all_occurrences(limit=20))), 20)
             self.assertEqual(len(list(obj.all_occurrences())), REPEAT_MAX)
 
     def test_non_repeating_intersection(self):
-        occ = self.past.occurrence_set.get()
+        occ = self.past.get_related_occurrences().get()
 
         dates = list(occ.all_occurrences(
             from_date=datetime(2014, 1, 1, 7, 30),
@@ -323,28 +323,28 @@ class EventToolsTestCase(TestCase):
         self.assertEqual(len(dates), 1)
 
     def test_integer_rules_can_be_migrated(self):
-        yearly = Occurrence.objects.create(
+        yearly = MyOccurrence.objects.create(
             event=self.christmas,
             start=datetime(2000, 12, 25, 7, 0),
             end=datetime(2000, 12, 25, 22, 0),
             repeat=rrule.YEARLY)
-        monthly = Occurrence.objects.create(
+        monthly = MyOccurrence.objects.create(
             event=self.past,
             start=datetime(2014, 1, 1, 7, 0),
             end=datetime(2014, 1, 1, 8, 0),
             repeat=rrule.MONTHLY)
-        weekly = Occurrence.objects.create(
+        weekly = MyOccurrence.objects.create(
             event=self.weekends,
             start=datetime(2015, 1, 4, 9, 0),
             end=datetime(2015, 1, 4, 10, 0),
             repeat=rrule.WEEKLY)
-        daily = Occurrence.objects.create(
+        daily = MyOccurrence.objects.create(
             event=self.daily,
             start=datetime(2015, 1, 1, 7, 0),
             end=datetime(2015, 1, 1, 8, 0),
             repeat=rrule.DAILY)
 
-        Occurrence.objects.migrate_integer_repeat()
+        MyOccurrence.objects.migrate_integer_repeat()
         yearly.refresh_from_db()
         self.assertEqual(yearly.repeat, 'RRULE:FREQ=YEARLY')
         monthly.refresh_from_db()
@@ -355,18 +355,18 @@ class EventToolsTestCase(TestCase):
         self.assertEqual(daily.repeat, 'RRULE:FREQ=DAILY')
 
     def test_queryset_filtering(self):
-        event1 = Event.objects.create(title='Jan 1st 2000')
-        Occurrence.objects.create(
+        event1 = MyEvent.objects.create(title='Jan 1st 2000')
+        MyOccurrence.objects.create(
             event=event1,
             start=datetime(2000, 1, 1, 7, 0),
             end=datetime(2000, 1, 1, 8, 0))
-        event2 = Event.objects.create(title='Jan 1st 2001')
-        Occurrence.objects.create(
+        event2 = MyEvent.objects.create(title='Jan 1st 2001')
+        MyOccurrence.objects.create(
             event=event2,
             start=datetime(2001, 1, 1, 7, 0),
             end=datetime(2001, 1, 1, 8, 0))
-        events = Event.objects.filter(pk__in=[event1.pk, event2.pk])
-        occs = Occurrence.objects.filter(event__pk__in=[event1.pk, event2.pk])
+        events = MyEvent.objects.filter(pk__in=[event1.pk, event2.pk])
+        occs = MyOccurrence.objects.filter(event__pk__in=[event1.pk, event2.pk])
 
         # 1 in 2000
         self.assertEqual(
@@ -397,14 +397,14 @@ class EventToolsTestCase(TestCase):
             0, events.for_period(date(2002, 1, 1), date(2002, 12, 31)).count())
 
         # add another past event with yearly repetition
-        event3 = Event.objects.create(title='Jun 1st 1998, yearly')
-        Occurrence.objects.create(
+        event3 = MyEvent.objects.create(title='Jun 1st 1998, yearly')
+        MyOccurrence.objects.create(
             event=event3,
             start=datetime(1998, 6, 1, 7, 0),
             end=datetime(1998, 6, 1, 8, 0),
             repeat='RRULE:FREQ=YEARLY')
-        events = events | Event.objects.filter(pk=event3.pk)
-        occs = occs | Occurrence.objects.filter(event__pk=event3.pk)
+        events = events | MyEvent.objects.filter(pk=event3.pk)
+        occs = occs | MyOccurrence.objects.filter(event__pk=event3.pk)
 
         # Jan 2001 now contains a false positive
         self.assertEqual(
@@ -421,9 +421,9 @@ class EventToolsTestCase(TestCase):
     def test_dst_boundary(self):
         # Check that event start times are consistent across daylight saving
         # changes - on an EST5EDT system, daylight saving ends on 5/11/2016
-        event = Event.objects.create(title='Test')
+        event = MyEvent.objects.create(title='Test')
         start = make_aware(datetime(2016, 11, 5, 10, 0))
-        Occurrence.objects.create(event=event, start=start,
+        MyOccurrence.objects.create(event=event, start=start,
                                   repeat="RRULE:FREQ=WEEKLY")
 
         occs = list(event.all_occurrences(from_date=start, limit=2))
@@ -433,9 +433,9 @@ class EventToolsTestCase(TestCase):
     @override_settings(USE_TZ=True, TIME_ZONE='Pacific/Auckland')
     def test_dst_boundary_nz(self):
         # NZ DST commences on 25/9/2016
-        event = Event.objects.create(title='Test')
+        event = MyEvent.objects.create(title='Test')
         start = make_aware(datetime(2016, 9, 20, 10, 0))
-        Occurrence.objects.create(event=event, start=start,
+        MyOccurrence.objects.create(event=event, start=start,
                                   repeat="RRULE:FREQ=WEEKLY")
 
         occs = list(event.all_occurrences(from_date=start.date(), limit=2))
@@ -443,7 +443,7 @@ class EventToolsTestCase(TestCase):
         self.assertEqual(occs[1][0], make_aware(datetime(2016, 9, 27, 10, 0)))
 
     def test_sort_by_next(self):
-        qs = Event.objects.filter(pk__in=[self.christmas.pk, self.weekends.pk])
+        qs = MyEvent.objects.filter(pk__in=[self.christmas.pk, self.weekends.pk])
 
         # Christmas 2015 fell on a Friday
         christmas_first = qs.sort_by_next(from_date=date(2015, 12, 24))

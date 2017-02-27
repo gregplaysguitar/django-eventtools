@@ -5,12 +5,16 @@ from eventtools.models import BaseEvent, BaseOccurrence
 
 
 @python_2_unicode_compatible
-class Event(BaseEvent):
+class MyEvent(BaseEvent):
     title = models.CharField(max_length=100)
 
     def __str__(self):
         return self.title
 
 
-class Occurrence(BaseOccurrence):
-    event = models.ForeignKey(Event)
+class MyOccurrence(BaseOccurrence):
+    event = models.ForeignKey(MyEvent)
+
+
+class MyOtherOccurrence(BaseOccurrence):
+    event = models.ForeignKey(MyEvent)

@@ -206,7 +206,7 @@ class EventQuerySet(BaseQuerySet):
            slow, especially for large querysets. """
 
         filtered_qs = self
-        prefix = 'occurrence'
+        prefix = self.model.occurrence_filter_prefix()
 
         def wrap_q(**kwargs):
             """Prepend the related model name to the filter keys. """
@@ -242,12 +242,34 @@ class BaseEvent(BaseModel):
 
     objects = EventManager()
 
+    @classmethod
+    def get_occurrence_relation(cls):
+        """Get the occurrence relation for this class - use the first if
+           there's more than one. """
+
+        # get all related occurrence fields
+        relations = [rel for rel in cls._meta.get_fields()
+                     if isinstance(rel, models.ManyToOneRel) and
+                     issubclass(rel.related_model, BaseOccurrence)]
+
+        # assume there's only one
+        return relations[0]
+
+    @classmethod
+    def occurrence_filter_prefix(cls):
+        rel = cls.get_occurrence_relation()
+        return rel.name
+
+    def get_related_occurrences(self):
+        rel = self.get_occurrence_relation()
+        return getattr(self, rel.get_accessor_name()).all()
+
     def all_occurrences(self, from_date=None, to_date=None, limit=None):
         """Return a generator yielding a (start, end) tuple for all dates
            for this event, taking repetition into account. """
 
-        return self.occurrence_set.all_occurrences(from_date, to_date,
-                                                   limit=limit)
+        return self.get_related_occurrences().all_occurrences(
+            from_date, to_date, limit=limit)
 
     class Meta:
         abstract = True

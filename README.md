@@ -25,12 +25,12 @@ Given the following models:
     from eventtools.models import BaseEvent, BaseOccurrence
 
 
-    class Event(BaseEvent):
+    class MyEvent(BaseEvent):
         title = models.CharField(max_length=100)
 
 
-    class Occurrence(BaseOccurrence):
-        event = models.ForeignKey(Event)
+    class MyOccurrence(BaseOccurrence):
+        event = models.ForeignKey(MyEvent)
 
 
 ## Usage
@@ -38,30 +38,30 @@ Given the following models:
 Create a sample event & occurrences
 
     >>> from datetime import datetime
-    >>> from myapp.models import Event
-    >>> event = Event.objects.create(title='Test event')
-    >>> once_off = Occurrence.objects.create(
+    >>> from myapp.models import MyEvent
+    >>> event = MyEvent.objects.create(title='Test event')
+    >>> once_off = MyOccurrence.objects.create(
             event=event,
             start=datetime(2016, 1, 1, 12, 0),
             end=datetime(2016, 1, 1, 2, 0))
-    >>> christmas = Occurrence.objects.create(
+    >>> christmas = MyOccurrence.objects.create(
             event=event,
             start=datetime(2015, 12, 25, 7, 0),
             end=datetime(2015, 12, 25, 22, 0),
             repeat='RRULE:FREQ=YEARLY')
-    >>> daily = Occurrence.objects.create(
+    >>> daily = MyOccurrence.objects.create(
             event=event,
             start=datetime(2016, 1, 1, 7, 0),
             end=datetime(2016, 1, 1, 8, 0),
             repeat='RRULE:FREQ=DAILY')
 
-`Event` and `Occurrence` instances, and their associated querysets, all support
+Event and Occurrence instances, and their associated querysets, all support
 the `all_occurrences` method, which takes two optional arguments - `from_date`
 and `to_date`, which may be dates or datetimes. `from_date` defaults to the
 current day, `to_date` to `None`. The method returns a python generator
 yielding tuples in the format `(start, end, instance)` - for example:
 
-    >>> Event.objects.all().all_occurrences()
+    >>> MyEvent.objects.all().all_occurrences()
     >>> event.all_occurrences(from_date=datetime(2015, 1, 1, 10, 0))
     >>> event.occurrence_set.all().all_occurrences(to_date=date(2016, 1, 1))
     >>> occurrence.all_occurrences(from_date=date(2016, 1, 1),
@@ -87,7 +87,7 @@ pass `exact=True` - this will filter using generated occurrences but still
 return a queryset - but be careful with this as it may be very slow and/or
 CPU-hungry. For example
 
-    >>> Event.objects.for_period(from_date=date(2015, 1, 1),
+    >>> MyEvent.objects.for_period(from_date=date(2015, 1, 1),
                                  to_date=date(2015, 12, 31))
     >>> event.occurrence_set.for_period(from_date=date(2015, 1, 1), exact=True)
 
@@ -98,7 +98,7 @@ using the `sort_by_next` method. By default this sorts instances by their
 first occurrence; the optional `from_date` argument will sort by the next
 occurrence after `from_date`. For example
 
-    >>> Event.objects.all().sort_by_next()
+    >>> MyEvent.objects.all().sort_by_next()
     >>> event.occurrence_set.for_period(from_date=date(2015, 1, 1)) \
     >>>      .sort_by_next(date(2015, 1, 1))
 
