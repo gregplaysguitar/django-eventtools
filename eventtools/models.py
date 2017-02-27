@@ -125,6 +125,18 @@ def filter_invalid(approx_qs, from_date, to_date):
     return approx_qs.exclude(pk__in=exclude_pks)
 
 
+def filter_from(qs, from_date, q_func=Q):
+    """Filter a queryset by from_date. May still contain false positives due to
+       uncertainty with repetitions. """
+
+    from_date = as_datetime(from_date)
+    return qs.filter(
+        q_func(end__isnull=False, end__gte=from_date) |
+        q_func(start__gte=from_date) |
+        (~q_func(repeat='') & (q_func(repeat_until__gte=from_date) |
+         q_func(repeat_until__isnull=True)))).distinct()
+
+
 class OccurrenceMixin(object):
     """Class mixin providing common occurrence-related functionality. """
 
@@ -194,24 +206,23 @@ class EventQuerySet(BaseQuerySet):
            slow, especially for large querysets. """
 
         filtered_qs = self
+        prefix = 'occurrence'
+
+        def wrap_q(**kwargs):
+            """Prepend the related model name to the filter keys. """
+
+            return Q(**{'%s__%s' % (prefix, k): v for k, v in kwargs.items()})
 
         # to_date filtering is accurate
         if to_date:
             to_date = as_datetime(to_date, True)
             filtered_qs = filtered_qs.filter(
-                Q(occurrence__start__lte=to_date)).distinct()
+                wrap_q(start__lte=to_date)).distinct()
 
         if from_date:
             # but from_date isn't, due to uncertainty with repetitions, so
             # just winnow down as much as possible via queryset filtering
-            from_date = as_datetime(from_date)
-            filtered_qs = filtered_qs.filter(
-                Q(occurrence__end__isnull=False,
-                  occurrence__end__gte=from_date) |
-                Q(occurrence__start__gte=from_date) |
-                (~Q(occurrence__repeat='') &
-                 (Q(occurrence__repeat_until__gte=from_date) |
-                  Q(occurrence__repeat_until__isnull=True)))).distinct()
+            filtered_qs = filter_from(filtered_qs, from_date, wrap_q)
 
             # filter out invalid results if requested
             if exact:
@@ -264,13 +275,7 @@ class OccurrenceQuerySet(BaseQuerySet):
         if from_date:
             # but from_date isn't, due to uncertainty with repetitions, so
             # just winnow down as much as possible via queryset filtering
-            from_date = as_datetime(from_date)
-            filtered_qs = filtered_qs.filter(
-                Q(end__isnull=False, end__gte=from_date) |
-                Q(start__gte=from_date) |
-                (~Q(repeat='') &
-                 (Q(repeat_until__gte=from_date) |
-                  Q(repeat_until__isnull=True)))).distinct()
+            filtered_qs = filter_from(filtered_qs, from_date)
 
             # filter out invalid results if requested
             if exact:
