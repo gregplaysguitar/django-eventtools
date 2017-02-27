@@ -22,7 +22,7 @@ setup(
     author='Greg Brown',
     author_email='greg@gregbrown.co.nz',
     url='https://github.com/gregplaysguitar/django-eventtools',
-    packages=find_packages(),
+    packages=find_packages(exclude=('tests', )),
     license='BSD License',
     zip_safe=False,
     platforms='any',
