@@ -20,18 +20,19 @@ Django 1.8 or higher is required.
 
 Given the following models:
 
-    from django.db import models
+```python
+from django.db import models
 
-    from eventtools.models import BaseEvent, BaseOccurrence
-
-
-    class MyEvent(BaseEvent):
-        title = models.CharField(max_length=100)
+from eventtools.models import BaseEvent, BaseOccurrence
 
 
-    class MyOccurrence(BaseOccurrence):
-        event = models.ForeignKey(MyEvent)
+class MyEvent(BaseEvent):
+    title = models.CharField(max_length=100)
 
+
+class MyOccurrence(BaseOccurrence):
+    event = models.ForeignKey(MyEvent)
+```
 
 ## Usage
 
@@ -111,12 +112,14 @@ Occurrences can repeat using any interval that can be expressed as an
 To customise the available options, set `EVENTTOOLS_REPEAT_CHOICES` in
 your django settings. The default value is
 
-    EVENTTOOLS_REPEAT_CHOICES = (
-        ("RRULE:FREQ=DAILY", 'Daily'),
-        ("RRULE:FREQ=WEEKLY", 'Weekly'),
-        ("RRULE:FREQ=MONTHLY", 'Monthly'),
-        ("RRULE:FREQ=YEARLY", 'Yearly'),
-    )
+```python
+EVENTTOOLS_REPEAT_CHOICES = (
+    ("RRULE:FREQ=DAILY", 'Daily'),
+    ("RRULE:FREQ=WEEKLY", 'Weekly'),
+    ("RRULE:FREQ=MONTHLY", 'Monthly'),
+    ("RRULE:FREQ=YEARLY", 'Yearly'),
+)
+```
 
 Set `EVENTTOOLS_REPEAT_CHOICES = None` to make repeat a plain-text field.
 
