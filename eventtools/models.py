@@ -414,18 +414,15 @@ class BaseOccurrence(BaseModel):
                 yield (occ_start, occ_start + delta, self.occurrence_data)
 
     def get_repeater(self):
-        # Timings to get all_occurrences() for a set of 2500 Occurrence objects
-        # with rrule.DAILY repeat
-        # Without method call (inline repeat)
-        # CPU times: user 53.4 s, sys: 76 ms, total: 53.4 s
-        # Wall time: 55.8 s
+        """Get rruleset instance representing this occurrence's repetitions.
 
-        # With method call
-        # CPU times: user 53.5 s, sys: 100 ms, total: 53.6 s
-        # Wall time: 56 s
-        # The subclassing benefit seems much larger than the performance hit
+        Subclasses may override this method for custom repeat behaviour.
+        """
 
-        return rrule.rrulestr(self.repeat, dtstart=default_naive(self.start))
+        ruleset = rrule.rruleset()
+        rule = rrule.rrulestr(self.repeat, dtstart=default_naive(self.start))
+        ruleset.rrule(rule)
+        return ruleset
 
     @property
     def occurrence_data(self):
