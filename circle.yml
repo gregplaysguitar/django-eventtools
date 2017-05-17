@@ -1,7 +1,7 @@
 dependencies:
   override:
     - pip install tox tox-pyenv
-    - pyenv local 2.7.13 3.4.6 3.5.3 3.6.1
+    - pyenv local 2.7.12 3.4.4 3.5.3 3.6.1
   post:
     - pip install coverage
     - python ./setup.py install
