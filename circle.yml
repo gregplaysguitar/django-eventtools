@@ -1,4 +1,13 @@
 dependencies:
   override:
     - pip install tox tox-pyenv
-    - pyenv local 2.7.12 3.4.4 3.5.2
+    - pyenv local 2.7.12 3.4.4 3.5.3 3.6.1
+  post:
+    - pip install coverage
+    - python ./setup.py install
+test:
+  post:
+    - coverage run --source eventtools ./runtests.py
+    - bash <(curl -s https://codecov.io/bash)
+    
+    

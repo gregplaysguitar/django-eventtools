@@ -20,18 +20,19 @@ Django 1.8 or higher is required.
 
 Given the following models:
 
-    from django.db import models
+```python
+from django.db import models
 
-    from eventtools.models import BaseEvent, BaseOccurrence
-
-
-    class MyEvent(BaseEvent):
-        title = models.CharField(max_length=100)
+from eventtools.models import BaseEvent, BaseOccurrence
 
 
-    class MyOccurrence(BaseOccurrence):
-        event = models.ForeignKey(MyEvent)
+class MyEvent(BaseEvent):
+    title = models.CharField(max_length=100)
 
+
+class MyOccurrence(BaseOccurrence):
+    event = models.ForeignKey(MyEvent)
+```
 
 ## Usage
 
@@ -111,14 +112,51 @@ Occurrences can repeat using any interval that can be expressed as an
 To customise the available options, set `EVENTTOOLS_REPEAT_CHOICES` in
 your django settings. The default value is
 
-    EVENTTOOLS_REPEAT_CHOICES = (
-        ("RRULE:FREQ=DAILY", 'Daily'),
-        ("RRULE:FREQ=WEEKLY", 'Weekly'),
-        ("RRULE:FREQ=MONTHLY", 'Monthly'),
-        ("RRULE:FREQ=YEARLY", 'Yearly'),
-    )
+```python
+EVENTTOOLS_REPEAT_CHOICES = (
+    ("RRULE:FREQ=DAILY", 'Daily'),
+    ("RRULE:FREQ=WEEKLY", 'Weekly'),
+    ("RRULE:FREQ=MONTHLY", 'Monthly'),
+    ("RRULE:FREQ=YEARLY", 'Yearly'),
+)
+```
 
 Set `EVENTTOOLS_REPEAT_CHOICES = None` to make repeat a plain-text field.
+
+## Occurrence cancellations or modifications
+
+Cancelling or modifying a single occurrence repetition is not currently supported, but can be implemented by overriding a couple of methods. For example, the following allows cancellations or one-off modifications to the start time of a repetition:
+
+```python
+from eventtools.models import (BaseEvent, BaseOccurrence, default_naive)
+from django.db import models
+
+
+class MyEvent(BaseEvent):
+	pass
+
+
+class MyEventOccurrence(BaseOccurrence):
+    event = models.ForeignKey(MyEvent)
+    overrides = models.ManyToManyField('MyEventOccurrenceOverride', blank=True)
+
+    def get_repeater(self):
+        rule = super().get_repeater()  # gets rruleset from parent method
+        ruleset.rrule(rule)
+        for override in self.overrides.all():
+            ruleset.exdate(default_naive(override.start))  # remove occurrence
+            if override.modified_start:  # reschedule occurrence if defined
+                ruleset.rdate(default_naive(override.modified_start))
+        return ruleset
+
+
+class MyEventOccurrenceOverride(models.Model):
+    start = models.DateTimeField()  # must match targeted repetition exactly
+    # new start, leave blank to cancel
+    modified_start = models.DateTimeField(blank=True, null=True)  
+```
+
+Note that start times must match exactly, so if the MyEventOccurrence start is changed, any previously-matching overrides will no longer be applied.
 
 ## Running tests
 
