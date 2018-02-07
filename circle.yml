@@ -3,11 +3,11 @@ dependencies:
     - pip install tox tox-pyenv
     - pyenv local 2.7.12 3.4.4 3.5.3 3.6.1
   post:
-    - pip install coverage
-    - python ./setup.py install
+    - pip3 install coverage
+    - python3 ./setup.py install
 test:
   post:
-    - coverage run --source eventtools ./runtests.py
+    - coverage run --source eventtools python3 ./runtests.py
     - bash <(curl -s https://codecov.io/bash)
     
     
