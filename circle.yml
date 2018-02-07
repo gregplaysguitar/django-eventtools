@@ -7,7 +7,7 @@ dependencies:
     - python3 ./setup.py install
 test:
   post:
-    - coverage run --source eventtools python3 ./runtests.py
+    - coverage run --source eventtools ./runtests.py
     - bash <(curl -s https://codecov.io/bash)
     
     
