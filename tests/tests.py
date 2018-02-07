@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.test import TestCase, override_settings
 from django.utils.timezone import get_default_timezone, make_aware
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from eventtools.models import REPEAT_MAX
 
 from .models import MyEvent, MyOccurrence
@@ -67,6 +68,26 @@ class EventToolsTestCase(TestCase):
         self.today = date(2015, 6, 1)
         self.first_of_year = date(2015, 1, 1)
         self.last_of_year = date(2015, 12, 31)
+
+    def test_occurrence_validation(self):
+        with self.assertRaises(ValidationError):
+            MyOccurrence(
+                start=datetime(2016, 1, 1, 7, 0),
+                end=datetime(2016, 1, 1, 6, 0),
+            ).clean()
+
+        with self.assertRaises(ValidationError):
+            MyOccurrence(
+                start=datetime(2016, 1, 1, 7, 0),
+                repeat_until=date(2017, 12, 31),
+            ).clean()
+
+        with self.assertRaises(ValidationError):
+            MyOccurrence(
+                start=datetime(2016, 1, 1, 7, 0),
+                repeat="RRULE:FREQ=MONTHLY",
+                repeat_until=date(2015, 12, 31),
+            ).clean()
 
     def test_single_occurrence(self):
         occ = self.christmas.get_related_occurrences().get()

@@ -352,7 +352,7 @@ class BaseOccurrence(BaseModel):
             msg = u"End must be after start"
             raise ValidationError(msg)
 
-        if self.repeat_until and self.repeat is None:
+        if self.repeat_until and not self.repeat:
             msg = u"Select a repeat interval, or remove the " \
                   u"'repeat until' date"
             raise ValidationError(msg)
