@@ -1,6 +1,8 @@
 from datetime import datetime, date, timedelta
 from dateutil import rrule
 from dateutil.relativedelta import relativedelta
+import pytz
+from django.utils import timezone
 
 from django.test import TestCase, override_settings
 from django.utils.timezone import get_default_timezone, make_aware
@@ -451,3 +453,22 @@ class EventToolsTestCase(TestCase):
 
         weekend_first = qs.sort_by_next(from_date=date(2015, 12, 20))
         self.assertEqual(weekend_first, [self.weekends, self.christmas])
+
+    @override_settings(USE_TZ=True, TIME_ZONE='Asia/Singapore')
+    def test_sg_timezone(self):
+        sg_tz = pytz.timezone('Asia/Singapore')
+        occ = MyOccurrence(
+            start=datetime(2017, 12, 24, 1, tzinfo=sg_tz),
+            repeat='FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;INTERVAL=1')
+
+        next_occ = occ.next_occurrence(
+            from_date=datetime(2017, 12, 26, 22, 49, tzinfo=pytz.utc))
+        self.assertEqual(
+            next_occ[0].timetuple()[:5],
+            (2017, 12, 28, 1, 0))
+
+        next_occ = occ.next_occurrence(
+            from_date=datetime(2017, 12, 26, 12, 49, tzinfo=pytz.utc))
+        self.assertEqual(
+            next_occ[0].timetuple()[:5],
+            (2017, 12, 27, 1, 0))
