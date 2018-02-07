@@ -345,7 +345,7 @@ class BaseOccurrence(BaseModel):
     end = models.DateTimeField(db_index=True, null=True, blank=True)
 
     repeat = ChoiceTextField(choices=REPEAT_CHOICES, default='', blank=True)
-    repeat_until = models.DateField(null=True, blank=True)
+    repeat_until = models.DateTimeField(null=True, blank=True)
 
     def clean(self):
         if self.start and self.end and self.start >= self.end:
