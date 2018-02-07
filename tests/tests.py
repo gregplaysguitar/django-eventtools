@@ -1,9 +1,9 @@
 from datetime import datetime, date, timedelta
 from dateutil import rrule
 from dateutil.relativedelta import relativedelta
+
 import pytz
 from django.utils import timezone
-
 from django.test import TestCase, override_settings
 from django.utils.timezone import get_default_timezone, make_aware
 from django.conf import settings
@@ -456,9 +456,9 @@ class EventToolsTestCase(TestCase):
 
     @override_settings(USE_TZ=True, TIME_ZONE='Asia/Singapore')
     def test_sg_timezone(self):
-        sg_tz = pytz.timezone('Asia/Singapore')
+        sg_tz = timezone.get_current_timezone()
         occ = MyOccurrence(
-            start=datetime(2017, 12, 24, 1, tzinfo=sg_tz),
+            start=sg_tz.localize(datetime(2017, 12, 24, 1)),
             repeat='FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;INTERVAL=1')
 
         next_occ = occ.next_occurrence(
