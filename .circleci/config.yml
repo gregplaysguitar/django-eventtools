@@ -1,0 +1,60 @@
+version: 2
+jobs:
+  python37:
+    working_directory: ~/django-eventtools
+    docker:
+      - image: circleci/python:3.7
+    steps:
+      - checkout
+      - run: sudo pip install tox
+      - run: TOXENV=py37-{dj20,dj21} tox
+
+  python36:
+    working_directory: ~/django-eventtools
+    docker:
+      - image: circleci/python:3.6
+    steps:
+      - checkout
+      - run: sudo pip install tox
+      - run: TOXENV=py36-{dj11,dj20,dj21} tox
+
+  python35:
+    working_directory: ~/django-eventtools
+    docker:
+      - image: circleci/python:3.5
+    steps:
+      - checkout
+      - run: sudo pip install tox
+      - run: TOXENV=py35-{dj11,dj20,dj21} tox
+
+  python27:
+    working_directory: ~/django-eventtools
+    docker:
+      - image: circleci/python:2.7
+    steps:
+      - checkout
+      - run: sudo pip install tox
+      - run: TOXENV=py35-{dj18,dj11} tox
+
+  meta:
+    working_directory: ~/django-eventtools
+    docker:
+      - image: circleci/python:3.7
+    steps:
+      - checkout
+      - run: sudo pip install tox coverage flake8
+      - run: sudo python ./setup.py install
+      - run: flake8 eventtools
+      - run: coverage run --source eventtools ./runtests.py
+      - run: bash <(curl -s https://codecov.io/bash)
+
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - python37
+      - python36
+      - python35
+      - python27
+      - meta
