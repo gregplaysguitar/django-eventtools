@@ -26,7 +26,7 @@ setup(
     license='BSD License',
     zip_safe=False,
     platforms='any',
-    install_requires=['Django>=1.8', 'python-dateutil>=2.1'],
+    install_requires=['Django>=1.8', 'python-dateutil>=2.1', 'six>=1.14.0'],
     include_package_data=True,
     package_data={},
     classifiers=[
