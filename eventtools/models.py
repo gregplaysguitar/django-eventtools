@@ -8,7 +8,7 @@ from django.db import models
 from django.db.models import Q, Case, When, Value
 from django.core.exceptions import ValidationError
 from django.utils.timezone import make_aware, is_naive, make_naive, is_aware
-from django.utils.encoding import python_2_unicode_compatible
+from six import python_2_unicode_compatible
 
 
 # set EVENTTOOLS_REPEAT_CHOICES = None to make this a plain textfield
