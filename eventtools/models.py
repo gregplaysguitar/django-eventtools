@@ -7,7 +7,10 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q, Case, When, Value
 from django.core.exceptions import ValidationError
+
 from django.utils.timezone import make_aware, is_naive, make_naive, is_aware
+from django.utils.translation import gettext_lazy as _
+
 from six import python_2_unicode_compatible
 
 
@@ -341,11 +344,15 @@ class BaseOccurrence(BaseModel):
        Subclasses will usually have a ForeignKey pointing to a BaseEvent
        subclass. """
 
-    start = models.DateTimeField(db_index=True)
-    end = models.DateTimeField(db_index=True, null=True, blank=True)
+    start = models.DateTimeField(db_index=True, verbose_name=_('start'))
+    end = models.DateTimeField(
+        db_index=True, null=True, blank=True, verbose_name=_('end'))
 
-    repeat = ChoiceTextField(choices=REPEAT_CHOICES, default='', blank=True)
-    repeat_until = models.DateField(null=True, blank=True)
+    repeat = ChoiceTextField(
+        choices=REPEAT_CHOICES, default='', blank=True,
+        verbose_name=_('repeat'))
+    repeat_until = models.DateField(
+        null=True, blank=True, verbose_name=_('repeat_until'))
 
     def clean(self):
         if self.start and self.end and self.start >= self.end:
