@@ -345,10 +345,13 @@ class BaseOccurrence(BaseModel):
        subclass. """
 
     start = models.DateTimeField(db_index=True, verbose_name=_('start'))
-    end = models.DateTimeField(db_index=True, null=True, blank=True, verbose_name=_('end'))
+    end = models.DateTimeField(
+        db_index=True, null=True, blank=True, verbose_name=_('end'))
 
-    repeat = ChoiceTextField(choices=REPEAT_CHOICES, default='', blank=True, verbose_name=_('repeat'))
-    repeat_until = models.DateField(null=True, blank=True, verbose_name=_('repeat_until'))
+    repeat = ChoiceTextField(
+        choices=REPEAT_CHOICES, default='', blank=True, verbose_name=_('repeat'))
+    repeat_until = models.DateField(
+        null=True, blank=True, verbose_name=_('repeat_until'))
 
     def clean(self):
         if self.start and self.end and self.start >= self.end:
