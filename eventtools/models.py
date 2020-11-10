@@ -349,7 +349,7 @@ class BaseOccurrence(BaseModel):
         db_index=True, null=True, blank=True, verbose_name=_('end'))
 
     repeat = ChoiceTextField(
-        choices=REPEAT_CHOICES, default='', blank=True, 
+        choices=REPEAT_CHOICES, default='', blank=True,
         verbose_name=_('repeat'))
     repeat_until = models.DateField(
         null=True, blank=True, verbose_name=_('repeat_until'))
