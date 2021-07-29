@@ -81,16 +81,20 @@ takes no arguments.
 
 ### Queryset filtering
 
-Event and Occurrence querysets can be filtered, but due to uncertainty
-with repetitions, `from_date` filtering is only an approximation (whereas
-`to_date` filtering is accurate). If you need a queryset filtered exactly,
-pass `exact=True` - this will filter using generated occurrences but still
-return a queryset - but be careful with this as it may be very slow and/or
-CPU-hungry. For example
+Event and Occurrence querysets can be filtered, but note that a `from_date`
+filtered queryset may contain false positives because it's not possible to tell
+for sure if a event will happen _after_ a certain date without evaluating
+repetition rules, meaning it can't be part of a database query. If you need a
+queryset filtered exactly, pass `exact=True` - this will filter the queryset by
+id, based on generated occurrences. Be careful with this option though as it
+may be very slow and/or CPU-hungry. For example
 
     >>> MyEvent.objects.for_period(from_date=date(2015, 1, 1),
                                  to_date=date(2015, 12, 31))
     >>> event.occurrence_set.for_period(from_date=date(2015, 1, 1), exact=True)
+
+Note `to_date` filtering is always accurate, because the query only needs to
+consider the event's first occurrence.
 
 ### Sorting querysets
 
