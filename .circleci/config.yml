@@ -3,7 +3,7 @@ jobs:
   python38:
     working_directory: ~/django-eventtools
     docker:
-      - image: circleci/python:3.8
+      - image: circleci/python:3.10
     steps:
       - checkout
       - run: sudo pip install tox
@@ -12,7 +12,7 @@ jobs:
   python37:
     working_directory: ~/django-eventtools
     docker:
-      - image: circleci/python:3.7
+      - image: circleci/python:3.10
     steps:
       - checkout
       - run: sudo pip install tox
@@ -21,7 +21,7 @@ jobs:
   python36:
     working_directory: ~/django-eventtools
     docker:
-      - image: circleci/python:3.6
+      - image: circleci/python:3.10
     steps:
       - checkout
       - run: sudo pip install tox
@@ -30,7 +30,7 @@ jobs:
   python35:
     working_directory: ~/django-eventtools
     docker:
-      - image: circleci/python:3.5
+      - image: circleci/python:3.10
     steps:
       - checkout
       - run: sudo pip install tox
@@ -39,7 +39,7 @@ jobs:
   python27:
     working_directory: ~/django-eventtools
     docker:
-      - image: circleci/python:2.7
+      - image: circleci/python:3.10
     steps:
       - checkout
       - run: sudo pip install tox
@@ -48,7 +48,7 @@ jobs:
   meta:
     working_directory: ~/django-eventtools
     docker:
-      - image: circleci/python:3.7
+      - image: circleci/python:3.10
     steps:
       - checkout
       - run: sudo pip install tox coverage flake8
